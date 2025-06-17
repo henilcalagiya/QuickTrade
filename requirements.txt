@@ -1,0 +1,8 @@
+Django==4.2.0
+kiteconnect==4.1.0
+python-dotenv==1.0.0
+whitenoise==6.5.0
+gunicorn==21.2.0
+fyers-apiv3
+psycopg2-binary==2.9.9
+dj-database-url==2.1.0

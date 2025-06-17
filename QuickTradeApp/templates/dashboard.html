@@ -1,0 +1,1382 @@
+{% extends 'base.html' %}
+
+{% block content %}
+{% csrf_token %}
+<!-- Notification Container -->
+<div class="notification-container"></div>
+
+<!-- Tooltip Container -->
+<div class="tooltip-container"></div>
+
+<div class="container">
+    <!-- Trading Controls Section -->
+    <div class="section-header d-flex justify-content-between align-items-center mb-4">
+        <h4 class="mb-0 fw-bold">Trading Terminal</h4>
+    </div>
+
+    <div class="card mb-5 trading-terminal">
+        <div class="card-body p-4">
+            <div class="row g-4">
+                <div class="col-md-6">
+                    <div class="trading-card">
+                        <div class="card-body p-4">
+                            <div class="d-flex align-items-center mb-4">
+                                <div class="index-icon">
+                                    <i class="fas fa-chart-line"></i>
+                                </div>
+                                <div class="ms-3">
+                                    <h5 class="card-title mb-0">NIFTY</h5>
+                                </div>
+                            </div>
+                            
+                            <div class="trading-controls">
+                                <div class="control-group mb-4">
+                                    <label class="control-label">Position Size</label>
+                                    <div class="input-group quantity-control">
+                                        <button class="btn btn-light" onclick="decrementQuantity('nifty')">
+                                            <i class="fas fa-minus"></i>
+                                        </button>
+                                        <input type="number" class="form-control text-center" id="nifty-quantity" value="1" min="1">
+                                        <button class="btn btn-light" onclick="incrementQuantity('nifty')">
+                                            <i class="fas fa-plus"></i>
+                                        </button>
+                                        <span class="input-group-text">Lots</span>
+                                    </div>
+                                </div>
+                                
+                                <div class="action-buttons">
+                                    <button class="btn btn-call" id="nifty-ce" onclick="placeOrder('NIFTY', 'CE')">
+                                        <i class="fas fa-arrow-up"></i>
+                                        <span>CALL</span>
+                                    </button>
+                                    <button class="btn btn-put" id="nifty-pe" onclick="placeOrder('NIFTY', 'PE')">
+                                        <i class="fas fa-arrow-down"></i>
+                                        <span>PUT</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-6">
+                    <div class="trading-card">
+                        <div class="card-body p-4">
+                            <div class="d-flex align-items-center mb-4">
+                                <div class="index-icon">
+                                    <i class="fas fa-chart-bar"></i>
+                                </div>
+                                <div class="ms-3">
+                                    <h5 class="card-title mb-0">BANKNIFTY</h5>
+                                </div>
+                            </div>
+                            
+                            <div class="trading-controls">
+                                <div class="control-group mb-4">
+                                    <label class="control-label">Position Size</label>
+                                    <div class="input-group quantity-control">
+                                        <button class="btn btn-light" onclick="decrementQuantity('banknifty')">
+                                            <i class="fas fa-minus"></i>
+                                        </button>
+                                        <input type="number" class="form-control text-center" id="banknifty-quantity" value="1" min="1">
+                                        <button class="btn btn-light" onclick="incrementQuantity('banknifty')">
+                                            <i class="fas fa-plus"></i>
+                                        </button>
+                                        <span class="input-group-text">Lots</span>
+                                    </div>
+                                </div>
+
+                                <div class="action-buttons">
+                                    <button class="btn btn-call" id="banknifty-ce" onclick="placeOrder('BANKNIFTY', 'CE')">
+                                        <i class="fas fa-arrow-up"></i>
+                                        <span>CALL</span>
+                                    </button>
+                                    <button class="btn btn-put" id="banknifty-pe" onclick="placeOrder('BANKNIFTY', 'PE')">
+                                        <i class="fas fa-arrow-down"></i>
+                                        <span>PUT</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Exit All Trades Button -->
+            <div class="row mt-4">
+                <div class="col-12">
+                    <button class="btn btn-danger exit-all-btn w-100" onclick="exitAllTrades()">
+                        <i class="fas fa-power-off me-2"></i>Exit All Trades
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Positions and Orders Section -->
+    <div class="section-header d-flex justify-content-between align-items-center mb-4" id="positions">
+        <h4 class="mb-0 fw-bold">Portfolio</h4>
+        <div class="btn-group">
+            <button type="button" class="btn btn-outline-primary btn-sm active" onclick="switchTab('positions')">Positions</button>
+            <button type="button" class="btn btn-outline-primary btn-sm" onclick="switchTab('orders')">Orders</button>
+            <button type="button" class="btn btn-outline-primary btn-sm" onclick="switchTab('history')">History</button>
+        </div>
+    </div>
+
+    <div class="card mb-4 portfolio-card">
+        <div class="card-body p-4">
+            <!-- Tab content -->
+            <div class="tab-content">
+                <!-- Positions Tab -->
+                <div id="positions-tab" class="tab-pane active">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle portfolio-table">
+                            <thead>
+                                <tr>
+                                    <th>Symbol</th>
+                                    <th>Type</th>
+                                    <th>Quantity</th>
+                                    <th>Entry</th>
+                                    <th>LTP</th>
+                                    <th>P&L</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="positions-table">
+                                {% if positions.net %}
+                                    {% for position in positions.net %}
+                                        {% if position.quantity != 0 %}
+                                        <tr>
+                                            <td>
+                                                <div class="d-flex align-items-center">
+                                                    <div class="symbol-icon me-2 bg-primary-light text-primary">{{ position.tradingsymbol|slice:":1" }}</div>
+                                                    <div>
+                                                        <div class="fw-medium">{{ position.tradingsymbol }}</div>
+                                                        <div class="text-muted small">{{ position.expiry|date:"M d" }}</div>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <span class="badge {% if position.quantity > 0 %}bg-success{% else %}bg-danger{% endif %}">
+                                                    {{ position.product }}
+                                                </span>
+                                            </td>
+                                            <td>{{ position.quantity }}</td>
+                                            <td>₹{{ position.average_price|floatformat:2 }}</td>
+                                            <td>₹{{ position.last_price|floatformat:2 }}</td>
+                                            <td class="{% if position.pnl > 0 %}text-success{% else %}text-danger{% endif %}">
+                                                ₹{{ position.pnl|floatformat:2 }}
+                                            </td>
+                                            <td>
+                                                <div class="dropdown">
+                                                    <button class="btn btn-sm btn-light" type="button" data-bs-toggle="dropdown">
+                                                        <i class="fas fa-ellipsis-v"></i>
+                                                    </button>
+                                                    <ul class="dropdown-menu">
+                                                        <li><a class="dropdown-item" href="#" onclick="exitPosition('{{ position.tradingsymbol }}')">
+                                                            <i class="fas fa-square-xmark me-2"></i>Exit
+                                                        </a></li>
+                                                        <li><a class="dropdown-item" href="#" onclick="modifySL('{{ position.tradingsymbol }}')">
+                                                            <i class="fas fa-sliders me-2"></i>Modify SL
+                                                        </a></li>
+                                                    </ul>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        {% endif %}
+                                    {% endfor %}
+                                {% else %}
+                                    <tr>
+                                        <td colspan="7" class="text-center text-muted py-4">
+                                            <i class="fas fa-info-circle me-2"></i>No open positions
+                                        </td>
+                                    </tr>
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Orders Tab -->
+                <div id="orders-tab" class="tab-pane">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle portfolio-table">
+                            <thead>
+                                <tr>
+                                    <th>Time</th>
+                                    <th>Symbol</th>
+                                    <th>Type</th>
+                                    <th>Quantity</th>
+                                    <th>Price</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="orders-table">
+                                {% if orders %}
+                                    {% for order in orders|dictsortreversed:"order_timestamp" %}
+                                    <tr>
+                                        <td>{{ order.order_timestamp|date:"H:i:s" }}</td>
+                                        <td>
+                                            <div class="d-flex align-items-center">
+                                                <div class="symbol-icon me-2 bg-primary-light text-primary">{{ order.tradingsymbol|slice:":1" }}</div>
+                                                <div>
+                                                    <div class="fw-medium">{{ order.tradingsymbol }}</div>
+                                                    <div class="text-muted small">{{ order.product }}</div>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <span class="badge {% if order.transaction_type == 'BUY' %}bg-success{% else %}bg-danger{% endif %}">
+                                                {{ order.transaction_type }}
+                                            </span>
+                                        </td>
+                                        <td>{{ order.quantity }}</td>
+                                        <td>₹{{ order.price|floatformat:2 }}</td>
+                                        <td>
+                                            <span class="badge {% if order.status == 'COMPLETE' %}bg-success{% elif order.status == 'REJECTED' %}bg-danger{% else %}bg-warning{% endif %}">
+                                                {{ order.status }}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            {% if order.status == 'OPEN' %}
+                                            <button class="btn btn-sm btn-danger" onclick="cancelOrder('{{ order.order_id }}')">
+                                                <i class="fas fa-times"></i>
+                                            </button>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                {% else %}
+                                    <tr>
+                                        <td colspan="7" class="text-center text-muted py-4">
+                                            <i class="fas fa-clock me-2"></i>No orders found
+                                        </td>
+                                    </tr>
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- History Tab -->
+                <div id="history-tab" class="tab-pane">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle portfolio-table">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Symbol</th>
+                                    <th>Type</th>
+                                    <th>Quantity</th>
+                                    <th>Entry</th>
+                                    <th>Exit</th>
+                                    <th>P&L</th>
+                                </tr>
+                            </thead>
+                            <tbody id="history-table">
+                                {% if history %}
+                                    {% for trade in history %}
+                                    <tr>
+                                        <td>{{ trade.order_timestamp|date:"M d, H:i" }}</td>
+                                        <td>
+                                            <div class="d-flex align-items-center">
+                                                <div class="symbol-icon me-2 bg-primary-light text-primary">{{ trade.tradingsymbol|slice:":1" }}</div>
+                                                <div>
+                                                    <div class="fw-medium">{{ trade.tradingsymbol }}</div>
+                                                    <div class="text-muted small">{{ trade.product }}</div>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <span class="badge {% if trade.transaction_type == 'BUY' %}bg-success{% else %}bg-danger{% endif %}">
+                                                {{ trade.transaction_type }}
+                                            </span>
+                                        </td>
+                                        <td>{{ trade.quantity }}</td>
+                                        <td>₹{{ trade.average_price|floatformat:2 }}</td>
+                                        <td>₹{{ trade.exit_price|floatformat:2 }}</td>
+                                        <td class="{% if trade.pnl > 0 %}text-success{% else %}text-danger{% endif %}">
+                                            ₹{{ trade.pnl|floatformat:2 }}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                {% else %}
+                                    <tr>
+                                        <td colspan="7" class="text-center text-muted py-4">
+                                            <i class="fas fa-history me-2"></i>No trade history found
+                                        </td>
+                                    </tr>
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    /* Trading Terminal Styles */
+    .trading-terminal {
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    }
+
+    .trading-card {
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        transition: box-shadow 0.2s ease;
+    }
+
+    .trading-card:hover {
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+    }
+
+    .index-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 6px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.25rem;
+        background: #f8fafc;
+        color: #475569;
+    }
+
+    .index-price {
+        font-size: 1.125rem;
+        font-weight: 600;
+        color: #1e293b;
+    }
+
+    .control-label {
+        color: #64748b;
+        font-size: 0.875rem;
+        font-weight: 500;
+        margin-bottom: 0.5rem;
+    }
+
+    .quantity-control {
+        border: 1px solid #e2e8f0;
+        border-radius: 6px;
+        overflow: hidden;
+    }
+
+    .quantity-control .form-control {
+        border: none;
+        border-left: 1px solid #e2e8f0;
+        border-right: 1px solid #e2e8f0;
+        color: #1e293b;
+        font-size: 1rem;
+        font-weight: 500;
+        text-align: center;
+    }
+
+    .quantity-control .form-control:focus {
+        box-shadow: none;
+        border-color: #e2e8f0;
+    }
+
+    .quantity-control .input-group-text {
+        background: #f8fafc;
+        border: none;
+        color: #64748b;
+        font-size: 0.875rem;
+    }
+
+    .quantity-control .btn {
+        background: #f8fafc;
+        border: none;
+        color: #64748b;
+        padding: 0.5rem 1rem;
+    }
+
+    .quantity-control .btn:hover {
+        background: #f1f5f9;
+        color: #475569;
+    }
+
+    .form-select {
+        border: 1px solid #e2e8f0;
+        color: #1e293b;
+        font-size: 0.875rem;
+        padding: 0.625rem 1rem;
+    }
+
+    .form-select:focus {
+        border-color: #94a3b8;
+        box-shadow: none;
+    }
+
+    .action-buttons {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1rem;
+    }
+
+    .btn-call, .btn-put {
+        padding: 0.75rem;
+        border: none;
+        border-radius: 6px;
+        font-weight: 500;
+        font-size: 0.875rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        transition: all 0.2s ease;
+    }
+
+    .btn-call {
+        background: #10b981;
+        color: white;
+    }
+
+    .btn-put {
+        background: #ef4444;
+        color: white;
+    }
+
+    .btn-call:hover {
+        background: #059669;
+        color: white;
+    }
+
+    .btn-put:hover {
+        background: #dc2626;
+        color: white;
+    }
+
+    .btn-call:active, .btn-put:active {
+        transform: translateY(1px);
+    }
+
+    /* Keep existing styles for other sections */
+    /* Trading Cards */
+    .trading-card {
+        border: 1px solid rgba(37, 99, 235, 0.1);
+        box-shadow: none;
+    }
+
+    .bg-gradient-light {
+        background: linear-gradient(to right, var(--bg-color), #f0f7ff);
+    }
+
+    /* Tab Controls */
+    .btn-group .btn {
+        font-size: 0.875rem;
+        padding: 0.375rem 0.75rem;
+    }
+
+    .tab-pane {
+        display: none;
+    }
+
+    .tab-pane.active {
+        display: block;
+    }
+
+    /* Notification Styles */
+    .notification-container {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 9999;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        max-width: 350px;
+    }
+
+    .notification {
+        padding: 12px 16px;
+        border-radius: 6px;
+        background: white;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        animation: slideIn 0.3s ease-out;
+        border-left: 4px solid;
+        position: relative;
+        touch-action: none;
+        user-select: none;
+        cursor: grab;
+        transition: transform 0.1s ease-out;
+    }
+
+    .notification:active {
+        cursor: grabbing;
+    }
+
+    .notification.dragging {
+        transition: none;
+        opacity: 0.9;
+    }
+
+    .notification.success {
+        border-left-color: #10b981;
+    }
+
+    .notification.error {
+        border-left-color: #ef4444;
+    }
+
+    .notification-icon {
+        font-size: 1.25rem;
+        flex-shrink: 0;
+    }
+
+    .notification.success .notification-icon {
+        color: #10b981;
+    }
+
+    .notification.error .notification-icon {
+        color: #ef4444;
+    }
+
+    .notification-content {
+        flex-grow: 1;
+        min-width: 0;
+    }
+
+    .notification-title {
+        font-weight: 500;
+        margin-bottom: 2px;
+        color: #1e293b;
+    }
+
+    .notification-message {
+        font-size: 0.875rem;
+        color: #64748b;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        position: relative;
+    }
+
+    .notification-message.has-tooltip {
+        cursor: help;
+    }
+
+    .notification-close {
+        background: none;
+        border: none;
+        color: #94a3b8;
+        cursor: pointer;
+        padding: 4px;
+        font-size: 1rem;
+        line-height: 1;
+        flex-shrink: 0;
+        transition: color 0.2s ease;
+    }
+
+    .notification-close:hover {
+        color: #64748b;
+    }
+
+    .notification-actions {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    /* Tooltip Styles */
+    .tooltip-container {
+        position: fixed;
+        z-index: 10000;
+        pointer-events: none;
+    }
+
+    .tooltip {
+        position: absolute;
+        background: rgba(0, 0, 0, 0.8);
+        color: white;
+        padding: 8px 12px;
+        border-radius: 4px;
+        font-size: 0.875rem;
+        max-width: 300px;
+        white-space: normal;
+        word-wrap: break-word;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        opacity: 0;
+        transform: translateY(5px);
+        transition: opacity 0.2s ease, transform 0.2s ease;
+    }
+
+    .tooltip.visible {
+        opacity: 1;
+        transform: translateY(0);
+    }
+
+    .tooltip::after {
+        content: '';
+        position: absolute;
+        top: -5px;
+        left: 50%;
+        transform: translateX(-50%);
+        border-width: 0 5px 5px 5px;
+        border-style: solid;
+        border-color: transparent transparent rgba(0, 0, 0, 0.8) transparent;
+    }
+
+    @keyframes slideIn {
+        from {
+            transform: translateX(100%);
+            opacity: 0;
+        }
+        to {
+            transform: translateX(0);
+            opacity: 1;
+        }
+    }
+
+    @keyframes slideOut {
+        from {
+            transform: translateX(0);
+            opacity: 1;
+        }
+        to {
+            transform: translateX(100%);
+            opacity: 0;
+        }
+    }
+
+    @keyframes slideUp {
+        from {
+            transform: translateY(0);
+            opacity: 1;
+        }
+        to {
+            transform: translateY(-100%);
+            opacity: 0;
+        }
+    }
+
+    /* Exit All Button Styles */
+    .exit-all-btn {
+        padding: 1rem 1.5rem;
+        font-weight: 600;
+        font-size: 1.1rem;
+        border-radius: 8px;
+        background: linear-gradient(45deg, #dc2626, #ef4444);
+        border: none;
+        color: white;
+        box-shadow: 0 4px 6px rgba(239, 68, 68, 0.2);
+        transition: all 0.3s ease;
+        margin-top: 1rem;
+    }
+
+    .exit-all-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 8px rgba(239, 68, 68, 0.3);
+        background: linear-gradient(45deg, #b91c1c, #dc2626);
+        color: white;
+    }
+
+    .exit-all-btn:active {
+        transform: translateY(0);
+        box-shadow: 0 2px 4px rgba(239, 68, 68, 0.2);
+    }
+
+    .exit-all-btn i {
+        font-size: 1.2rem;
+    }
+
+    /* Portfolio Section Styles */
+    .portfolio-card {
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        min-height: 400px;
+    }
+
+    .portfolio-table {
+        margin-bottom: 0;
+    }
+
+    .portfolio-table thead th {
+        background: #f8fafc;
+        color: #64748b;
+        font-size: 0.875rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        padding: 1rem;
+        border-bottom: 2px solid #e2e8f0;
+        white-space: nowrap;
+    }
+
+    .portfolio-table tbody td {
+        padding: 1rem;
+        vertical-align: middle;
+        border-bottom: 1px solid #e2e8f0;
+    }
+
+    .portfolio-table tbody tr:hover {
+        background-color: #f8fafc;
+    }
+
+    .symbol-icon {
+        width: 36px;
+        height: 36px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1rem;
+        font-weight: 600;
+        background: #e0f2fe;
+        color: #0284c7;
+    }
+
+    .badge {
+        padding: 0.5em 0.75em;
+        font-weight: 500;
+        font-size: 0.75rem;
+        border-radius: 6px;
+    }
+
+    .badge.bg-success {
+        background: #dcfce7 !important;
+        color: #16a34a;
+    }
+
+    .badge.bg-danger {
+        background: #fee2e2 !important;
+        color: #dc2626;
+    }
+
+    .btn-group .btn {
+        padding: 0.5rem 1rem;
+        font-size: 0.875rem;
+        font-weight: 500;
+        border-color: #e2e8f0;
+    }
+
+    .btn-group .btn.active {
+        background-color: #3b82f6;
+        border-color: #3b82f6;
+        color: white;
+    }
+
+    .btn-group .btn:hover:not(.active) {
+        background-color: #f8fafc;
+        border-color: #e2e8f0;
+    }
+
+    .dropdown-menu {
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+        padding: 0.5rem;
+    }
+
+    .dropdown-item {
+        padding: 0.5rem 1rem;
+        font-size: 0.875rem;
+        color: #475569;
+        border-radius: 6px;
+    }
+
+    .dropdown-item:hover {
+        background-color: #f8fafc;
+        color: #1e293b;
+    }
+
+    .dropdown-item i {
+        width: 16px;
+        color: #64748b;
+    }
+
+    /* Empty state styling */
+    .text-muted {
+        color: #94a3b8 !important;
+    }
+
+    .text-muted i {
+        font-size: 1.25rem;
+    }
+
+    /* Tab content styling */
+    .tab-pane {
+        min-height: 300px;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .tab-pane .table-responsive {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .tab-pane .portfolio-table {
+        flex: 1;
+    }
+
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+        .portfolio-table thead th,
+        .portfolio-table tbody td {
+            padding: 0.75rem;
+        }
+
+        .symbol-icon {
+            width: 32px;
+            height: 32px;
+            font-size: 0.875rem;
+        }
+
+        .btn-group .btn {
+            padding: 0.375rem 0.75rem;
+            font-size: 0.75rem;
+        }
+
+        .portfolio-card {
+            min-height: 350px;
+        }
+
+        .tab-pane {
+            min-height: 250px;
+        }
+    }
+
+    /* User Profile Tooltip Styles */
+    .user-profile-tooltip {
+        position: absolute;
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        padding: 1rem;
+        min-width: 250px;
+        z-index: 1000;
+        display: none;
+        border: 1px solid #e2e8f0;
+        right: 0;
+        top: 100%;
+        margin-top: 0.5rem;
+    }
+
+    .user-profile-tooltip.show {
+        display: block;
+    }
+
+    .user-profile-header {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        padding-bottom: 1rem;
+        border-bottom: 1px solid #e2e8f0;
+        margin-bottom: 1rem;
+    }
+
+    .user-profile-avatar {
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        background: #3b82f6;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 1.25rem;
+        font-weight: 600;
+    }
+
+    .user-profile-info h6 {
+        margin: 0;
+        color: #1e293b;
+        font-weight: 600;
+    }
+
+    .user-profile-info p {
+        margin: 0;
+        color: #64748b;
+        font-size: 0.875rem;
+    }
+
+    .user-profile-details {
+        display: grid;
+        gap: 0.75rem;
+    }
+
+    .user-profile-detail {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        color: #475569;
+        font-size: 0.875rem;
+    }
+
+    .user-profile-detail i {
+        width: 16px;
+        color: #64748b;
+    }
+
+    .user-profile-actions {
+        margin-top: 1rem;
+        padding-top: 1rem;
+        border-top: 1px solid #e2e8f0;
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    .user-profile-actions .btn {
+        flex: 1;
+        font-size: 0.875rem;
+        padding: 0.5rem;
+    }
+
+    /* Add hover effect to the trigger */
+    #userProfileTrigger:hover {
+        opacity: 0.9;
+    }
+</style>
+
+<script>
+    // Add new functions for quantity control
+    function incrementQuantity(symbol) {
+        const input = document.getElementById(`${symbol}-quantity`);
+        input.value = parseInt(input.value) + 1;
+    }
+
+    function decrementQuantity(symbol) {
+        const input = document.getElementById(`${symbol}-quantity`);
+        const newValue = parseInt(input.value) - 1;
+        if (newValue >= 1) {
+            input.value = newValue;
+        }
+    }
+
+    // Tooltip System
+    let tooltipTimeout;
+    const tooltipContainer = document.querySelector('.tooltip-container');
+    let currentTooltip = null;
+
+    function showTooltip(element, text) {
+        if (currentTooltip) {
+            currentTooltip.remove();
+        }
+
+        const tooltip = document.createElement('div');
+        tooltip.className = 'tooltip';
+        tooltip.textContent = text;
+        tooltipContainer.appendChild(tooltip);
+        currentTooltip = tooltip;
+
+        const rect = element.getBoundingClientRect();
+        const tooltipRect = tooltip.getBoundingClientRect();
+
+        // Position tooltip above the element
+        tooltip.style.left = `${rect.left + (rect.width / 2) - (tooltipRect.width / 2)}px`;
+        tooltip.style.top = `${rect.top - tooltipRect.height - 10}px`;
+
+        // Ensure tooltip stays within viewport
+        const tooltipLeft = parseInt(tooltip.style.left);
+        const tooltipRight = tooltipLeft + tooltipRect.width;
+        const viewportWidth = window.innerWidth;
+
+        if (tooltipLeft < 10) {
+            tooltip.style.left = '10px';
+        } else if (tooltipRight > viewportWidth - 10) {
+            tooltip.style.left = `${viewportWidth - tooltipRect.width - 10}px`;
+        }
+
+        // Show tooltip with animation
+        requestAnimationFrame(() => {
+            tooltip.classList.add('visible');
+        });
+    }
+
+    function hideTooltip() {
+        if (currentTooltip) {
+            currentTooltip.classList.remove('visible');
+            setTimeout(() => {
+                if (currentTooltip) {
+                    currentTooltip.remove();
+                    currentTooltip = null;
+                }
+            }, 200);
+        }
+    }
+
+    // Notification System
+    function showNotification(type, title, message, duration = 5000) {
+        const container = document.querySelector('.notification-container');
+        const notification = document.createElement('div');
+        notification.className = `notification ${type}`;
+        
+        const icon = type === 'success' ? 'check-circle' : 'exclamation-circle';
+        
+        notification.innerHTML = `
+            <div class="notification-icon">
+                <i class="fas fa-${icon}"></i>
+            </div>
+            <div class="notification-content">
+                <div class="notification-title">${title}</div>
+                <div class="notification-message ${message.length > 50 ? 'has-tooltip' : ''}">${message}</div>
+            </div>
+            <div class="notification-actions">
+                <button class="notification-close" onclick="dismissNotification(this.parentElement.parentElement)">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        `;
+        
+        container.appendChild(notification);
+
+        // Add tooltip functionality for long messages
+        const messageElement = notification.querySelector('.notification-message');
+        if (messageElement.classList.contains('has-tooltip')) {
+            messageElement.addEventListener('mouseenter', () => {
+                clearTimeout(tooltipTimeout);
+                tooltipTimeout = setTimeout(() => {
+                    showTooltip(messageElement, message);
+                }, 300);
+            });
+
+            messageElement.addEventListener('mouseleave', () => {
+                clearTimeout(tooltipTimeout);
+                hideTooltip();
+            });
+        }
+        
+        // Initialize drag events
+        let startX, startY, currentX, currentY;
+        let isDragging = false;
+        let initialTransform = '';
+        let lastX, lastY;
+        let velocityX = 0;
+        let velocityY = 0;
+        let lastTime = 0;
+        
+        function handleDragStart(e) {
+            if (e.type === 'mousedown') {
+                startX = e.clientX;
+                startY = e.clientY;
+            } else {
+                startX = e.touches[0].clientX;
+                startY = e.touches[0].clientY;
+            }
+            isDragging = true;
+            initialTransform = notification.style.transform;
+            notification.classList.add('dragging');
+            lastX = startX;
+            lastY = startY;
+            lastTime = Date.now();
+        }
+        
+        function handleDragMove(e) {
+            if (!isDragging) return;
+            
+            e.preventDefault();
+            
+            if (e.type === 'mousemove') {
+                currentX = e.clientX;
+                currentY = e.clientY;
+            } else {
+                currentX = e.touches[0].clientX;
+                currentY = e.touches[0].clientY;
+            }
+            
+            const deltaX = currentX - startX;
+            const deltaY = currentY - startY;
+            
+            // Calculate velocity
+            const currentTime = Date.now();
+            const timeDelta = currentTime - lastTime;
+            if (timeDelta > 0) {
+                velocityX = (currentX - lastX) / timeDelta;
+                velocityY = (currentY - lastY) / timeDelta;
+            }
+            lastX = currentX;
+            lastY = currentY;
+            lastTime = currentTime;
+            
+            // Determine if the drag is more horizontal or vertical
+            if (Math.abs(deltaX) > Math.abs(deltaY)) {
+                // Horizontal drag
+                if (deltaX > 0) { // Drag right
+                    notification.style.transform = `translateX(${deltaX}px)`;
+                }
+            } else {
+                // Vertical drag
+                if (deltaY < 0) { // Drag up
+                    notification.style.transform = `translateY(${deltaY}px)`;
+                }
+            }
+        }
+        
+        function handleDragEnd(e) {
+            if (!isDragging) return;
+            
+            isDragging = false;
+            notification.classList.remove('dragging');
+            
+            const deltaX = currentX - startX;
+            const deltaY = currentY - startY;
+            
+            // Determine if the drag is more horizontal or vertical
+            if (Math.abs(deltaX) > Math.abs(deltaY)) {
+                // Horizontal drag
+                if (deltaX > 50 || velocityX > 0.5) { // Threshold or velocity
+                    dismissNotification(notification, 'slideOut');
+                } else {
+                    notification.style.transform = initialTransform;
+                }
+            } else {
+                // Vertical drag
+                if (deltaY < -50 || velocityY < -0.5) { // Threshold or velocity
+                    dismissNotification(notification, 'slideUp');
+                } else {
+                    notification.style.transform = initialTransform;
+                }
+            }
+        }
+        
+        // Mouse events
+        notification.addEventListener('mousedown', handleDragStart);
+        document.addEventListener('mousemove', handleDragMove);
+        document.addEventListener('mouseup', handleDragEnd);
+        
+        // Touch events
+        notification.addEventListener('touchstart', handleDragStart);
+        document.addEventListener('touchmove', handleDragMove, { passive: false });
+        document.addEventListener('touchend', handleDragEnd);
+        
+        // Auto remove after duration
+        setTimeout(() => {
+            dismissNotification(notification, 'slideOut');
+        }, duration);
+    }
+
+    function dismissNotification(notification, animation = 'slideOut') {
+        notification.style.animation = `${animation} 0.3s ease-out forwards`;
+        setTimeout(() => notification.remove(), 300);
+    }
+
+    // Function to place order
+    function placeOrder(symbol, type) {
+        let quantity = 1;
+        
+        if (symbol === 'NIFTY') {
+            quantity = document.getElementById('nifty-quantity').value;
+        } else if (symbol === 'BANKNIFTY') {
+            quantity = document.getElementById('banknifty-quantity').value;
+        }
+        
+        // Placeholder - implement actual order placement
+        console.log(`Placing order: ${symbol} ${type}, Quantity: ${quantity}`);
+        
+        // Send order to server
+        fetch('/place_order/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            },
+            body: JSON.stringify({
+                index: symbol,
+                direction: type,
+                quantity: quantity
+            }),
+        })
+        .then(response => response.json())
+        .then(data => {
+            console.log('Order placed:', data);
+            if (data.success) {
+                showNotification(
+                    'success',
+                    'Order Placed Successfully',
+                    data.message
+                );
+                
+                // Refresh positions and orders after a short delay
+                setTimeout(() => {
+                    // Here you would update the positions table
+                }, 1000);
+            } else {
+                showNotification(
+                    'error',
+                    'Order Failed',
+                    `${data.error}: ${data.details || ''}`
+                );
+            }
+        })
+        .catch(error => {
+            console.error('Error placing order:', error);
+            showNotification(
+                'error',
+                'Error',
+                'Failed to place order. Please try again.'
+            );
+        });
+    }
+    
+    // Function to switch tabs
+    function switchTab(tabName) {
+        // Hide all tab panes
+        document.querySelectorAll('.tab-pane').forEach(pane => {
+            pane.classList.remove('active');
+        });
+        
+        // Show selected tab pane
+        document.getElementById(tabName + '-tab').classList.add('active');
+        
+        // Update button states
+        document.querySelectorAll('.btn-group .btn').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        event.target.classList.add('active');
+    }
+
+    // Exit All Trades Function
+    function exitAllTrades() {
+
+        fetch('/exit_all/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showNotification('success', 'Success', 'All trades exited successfully');
+                // Refresh the page after a short delay
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1500);
+            } else {
+                showNotification('error', 'Error', data.error || 'Failed to exit trades');
+            }
+        })
+        .catch(error => {
+            showNotification('error', 'Error', 'Failed to exit trades: ' + error.message);
+        });
+    }
+
+    // Function to exit position
+    function exitPosition(symbol) {
+        if (confirm(`Are you sure you want to exit position for ${symbol}?`)) {
+            // Implement position exit logic
+            console.log(`Exiting position for ${symbol}`);
+        }
+    }
+
+    // Function to modify stop loss
+    function modifySL(symbol) {
+        // Implement stop loss modification logic
+        console.log(`Modifying stop loss for ${symbol}`);
+    }
+
+    // User Profile Tooltip
+    document.addEventListener('DOMContentLoaded', function() {
+        const userProfileTrigger = document.getElementById('userProfileTrigger');
+        const userProfileTooltip = document.getElementById('userProfileTooltip');
+        let tooltipTimeout;
+
+        if (userProfileTrigger && userProfileTooltip) {
+            function showTooltip() {
+                clearTimeout(tooltipTimeout);
+                userProfileTooltip.classList.add('show');
+            }
+
+            function hideTooltip() {
+                tooltipTimeout = setTimeout(() => {
+                    userProfileTooltip.classList.remove('show');
+                }, 200);
+            }
+
+            userProfileTrigger.addEventListener('mouseenter', showTooltip);
+            userProfileTrigger.addEventListener('mouseleave', hideTooltip);
+            userProfileTooltip.addEventListener('mouseenter', () => clearTimeout(tooltipTimeout));
+            userProfileTooltip.addEventListener('mouseleave', hideTooltip);
+
+            // Close tooltip when clicking outside
+            document.addEventListener('click', (e) => {
+                if (!userProfileTrigger.contains(e.target) && !userProfileTooltip.contains(e.target)) {
+                    userProfileTooltip.classList.remove('show');
+                }
+            });
+        }
+    });
+
+    // Function to update portfolio data
+    function updatePortfolio() {
+        // Fetch positions
+        fetch('/dashboard/')
+            .then(response => response.text())
+            .then(html => {
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(html, 'text/html');
+                
+                // Update positions table
+                const newPositionsTable = doc.getElementById('positions-table');
+                if (newPositionsTable) {
+                    document.getElementById('positions-table').innerHTML = newPositionsTable.innerHTML;
+                }
+                
+                // Update orders table
+                const newOrdersTable = doc.getElementById('orders-table');
+                if (newOrdersTable) {
+                    document.getElementById('orders-table').innerHTML = newOrdersTable.innerHTML;
+                }
+                
+                // Update history table
+                const newHistoryTable = doc.getElementById('history-table');
+                if (newHistoryTable) {
+                    document.getElementById('history-table').innerHTML = newHistoryTable.innerHTML;
+                }
+            })
+            .catch(error => console.error('Error updating portfolio:', error));
+    }
+
+    // Variable to store the update interval
+    let updateInterval;
+
+    // Function to start periodic updates
+    function startUpdates() {
+        // Clear any existing interval
+        if (updateInterval) {
+            clearInterval(updateInterval);
+        }
+        
+        // Initial update
+        updatePortfolio();
+        
+        // Set up periodic updates
+        updateInterval = setInterval(updatePortfolio, 30000); // Update every 30 seconds
+    }
+
+    // Function to stop updates
+    function stopUpdates() {
+        if (updateInterval) {
+            clearInterval(updateInterval);
+            updateInterval = null;
+        }
+    }
+
+    // Start updates when page loads
+    document.addEventListener('DOMContentLoaded', function() {
+        startUpdates();
+        
+        // Stop updates when page is hidden
+        document.addEventListener('visibilitychange', function() {
+            if (document.hidden) {
+                stopUpdates();
+            } else {
+                startUpdates();
+            }
+        });
+    });
+</script>
+{% endblock %} 
