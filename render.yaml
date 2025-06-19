@@ -15,6 +15,8 @@ services:
         value: False
       - key: GA_MEASUREMENT_ID
         value: G-XXXXXXXXXX
+      - key: BASE_URL
+        value: https://quicktrade.onrender.com
       - key: DATABASE_URL
         fromDatabase:
           name: quicktrade-db
