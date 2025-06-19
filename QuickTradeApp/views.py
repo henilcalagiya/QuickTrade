@@ -234,14 +234,15 @@ def fyers_callback(request):
     
     # Get stored credentials
     client_id = request.session.get('fyers_client_id')
-    secret = request.session.get('fyers_secret')
+    client_secret = request.session.get('fyers_client_secret')
+    redirect_uri = request.session.get('fyers_redirect_uri')
     
-    if not client_id or not secret:
+    if not all([client_id, client_secret, redirect_uri]):
         return redirect('fyers_login')
     
     try:
         # Initialize Fyers auth
-        fyers = FyersAuth(client_id, secret)
+        fyers = FyersAuth(client_id, client_secret, redirect_uri)
         
         # Generate access token
         data = fyers.generate_access_token(auth_code)
@@ -253,7 +254,7 @@ def fyers_callback(request):
     except Exception as e:
         # Clear Fyers session data on error
         request.session.pop('fyers_client_id', None)
-        request.session.pop('fyers_secret', None)
+        request.session.pop('fyers_client_secret', None)
         request.session.pop('fyers_access_token', None)
     
     return redirect('fyers_login')

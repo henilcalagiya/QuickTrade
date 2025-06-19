@@ -6,7 +6,7 @@ class FyersAuth:
     def __init__(self, client_id, client_secret, redirect_uri):
         # Validate client_id format (should be in format XXXXX-100)
         if not client_id or "-" not in client_id or not client_id.endswith("-100"):
-            pass
+            raise ValueError("Client ID must be in format XXXXX-100")
         
         self.client_id = client_id
         self.client_secret = client_secret
