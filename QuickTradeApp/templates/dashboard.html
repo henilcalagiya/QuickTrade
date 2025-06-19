@@ -5,9 +5,6 @@
 <!-- Notification Container -->
 <div class="notification-container"></div>
 
-<!-- Tooltip Container -->
-<div class="tooltip-container"></div>
-
 <div class="container">
     <!-- Trading Controls Section -->
     <div class="section-header d-flex justify-content-between align-items-center mb-4">
@@ -209,7 +206,6 @@
                                     <th>Quantity</th>
                                     <th>Price</th>
                                     <th>Status</th>
-                                    <th>Actions</th>
                                 </tr>
                             </thead>
                             <tbody id="orders-table">
@@ -238,18 +234,11 @@
                                                 {{ order.status }}
                                             </span>
                                         </td>
-                                        <td>
-                                            {% if order.status == 'OPEN' %}
-                                            <button class="btn btn-sm btn-danger" onclick="cancelOrder('{{ order.order_id }}')">
-                                                <i class="fas fa-times"></i>
-                                            </button>
-                                            {% endif %}
-                                        </td>
                                     </tr>
                                     {% endfor %}
                                 {% else %}
                                     <tr>
-                                        <td colspan="7" class="text-center text-muted py-4">
+                                        <td colspan="6" class="text-center text-muted py-4">
                                             <i class="fas fa-clock me-2"></i>No orders found
                                         </td>
                                     </tr>
@@ -527,6 +516,18 @@
         border-left-color: #ef4444;
     }
 
+    .notification.warning {
+        border-left-color: #f59e0b;
+    }
+
+    .notification.info {
+        border-left-color: #3b82f6;
+    }
+
+    .notification.loading {
+        border-left-color: #6366f1;
+    }
+
     .notification-icon {
         font-size: 1.25rem;
         flex-shrink: 0;
@@ -538,6 +539,18 @@
 
     .notification.error .notification-icon {
         color: #ef4444;
+    }
+
+    .notification.warning .notification-icon {
+        color: #f59e0b;
+    }
+
+    .notification.info .notification-icon {
+        color: #3b82f6;
+    }
+
+    .notification.loading .notification-icon {
+        color: #6366f1;
     }
 
     .notification-content {
@@ -554,14 +567,44 @@
     .notification-message {
         font-size: 0.875rem;
         color: #64748b;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
         position: relative;
+        margin-bottom: 8px;
+        word-break: break-word;
+        white-space: normal;
+        overflow: visible;
+        text-overflow: unset;
     }
 
-    .notification-message.has-tooltip {
-        cursor: help;
+    .notification-details {
+        background: rgba(0, 0, 0, 0.02);
+        border-radius: 4px;
+        padding: 8px;
+        margin-top: 8px;
+        border-left: 2px solid currentColor;
+    }
+
+    .detail-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 4px;
+        font-size: 0.75rem;
+    }
+
+    .detail-item:last-child {
+        margin-bottom: 0;
+    }
+
+    .detail-label {
+        font-weight: 500;
+        color: #374151;
+        margin-right: 8px;
+    }
+
+    .detail-value {
+        color: #6b7280;
+        text-align: right;
+        word-break: break-word;
     }
 
     .notification-close {
@@ -584,45 +627,6 @@
         display: flex;
         align-items: center;
         gap: 8px;
-    }
-
-    /* Tooltip Styles */
-    .tooltip-container {
-        position: fixed;
-        z-index: 10000;
-        pointer-events: none;
-    }
-
-    .tooltip {
-        position: absolute;
-        background: rgba(0, 0, 0, 0.8);
-        color: white;
-        padding: 8px 12px;
-        border-radius: 4px;
-        font-size: 0.875rem;
-        max-width: 300px;
-        white-space: normal;
-        word-wrap: break-word;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-        opacity: 0;
-        transform: translateY(5px);
-        transition: opacity 0.2s ease, transform 0.2s ease;
-    }
-
-    .tooltip.visible {
-        opacity: 1;
-        transform: translateY(0);
-    }
-
-    .tooltip::after {
-        content: '';
-        position: absolute;
-        top: -5px;
-        left: 50%;
-        transform: translateX(-50%);
-        border-width: 0 5px 5px 5px;
-        border-style: solid;
-        border-color: transparent transparent rgba(0, 0, 0, 0.8) transparent;
     }
 
     @keyframes slideIn {
@@ -938,6 +942,39 @@
     #userProfileTrigger:hover {
         opacity: 0.9;
     }
+
+    /* Button States */
+    .btn-success {
+        background: linear-gradient(45deg, #10b981, #059669) !important;
+        color: white !important;
+        box-shadow: 0 4px 6px rgba(16, 185, 129, 0.2) !important;
+    }
+
+    .btn-error {
+        background: linear-gradient(45deg, #ef4444, #dc2626) !important;
+        color: white !important;
+        box-shadow: 0 4px 6px rgba(239, 68, 68, 0.2) !important;
+    }
+
+    .btn:disabled {
+        opacity: 0.7;
+        cursor: not-allowed;
+        transform: none !important;
+    }
+
+    /* Loading Animation */
+    .fa-spin {
+        animation: fa-spin 1s infinite linear;
+    }
+
+    @keyframes fa-spin {
+        0% {
+            transform: rotate(0deg);
+        }
+        100% {
+            transform: rotate(360deg);
+        }
+    }
 </style>
 
 <script>
@@ -955,73 +992,58 @@
         }
     }
 
-    // Tooltip System
-    let tooltipTimeout;
-    const tooltipContainer = document.querySelector('.tooltip-container');
-    let currentTooltip = null;
-
-    function showTooltip(element, text) {
-        if (currentTooltip) {
-            currentTooltip.remove();
-        }
-
-        const tooltip = document.createElement('div');
-        tooltip.className = 'tooltip';
-        tooltip.textContent = text;
-        tooltipContainer.appendChild(tooltip);
-        currentTooltip = tooltip;
-
-        const rect = element.getBoundingClientRect();
-        const tooltipRect = tooltip.getBoundingClientRect();
-
-        // Position tooltip above the element
-        tooltip.style.left = `${rect.left + (rect.width / 2) - (tooltipRect.width / 2)}px`;
-        tooltip.style.top = `${rect.top - tooltipRect.height - 10}px`;
-
-        // Ensure tooltip stays within viewport
-        const tooltipLeft = parseInt(tooltip.style.left);
-        const tooltipRight = tooltipLeft + tooltipRect.width;
-        const viewportWidth = window.innerWidth;
-
-        if (tooltipLeft < 10) {
-            tooltip.style.left = '10px';
-        } else if (tooltipRight > viewportWidth - 10) {
-            tooltip.style.left = `${viewportWidth - tooltipRect.width - 10}px`;
-        }
-
-        // Show tooltip with animation
-        requestAnimationFrame(() => {
-            tooltip.classList.add('visible');
-        });
-    }
-
-    function hideTooltip() {
-        if (currentTooltip) {
-            currentTooltip.classList.remove('visible');
-            setTimeout(() => {
-                if (currentTooltip) {
-                    currentTooltip.remove();
-                    currentTooltip = null;
-                }
-            }, 200);
-        }
-    }
-
-    // Notification System
-    function showNotification(type, title, message, duration = 5000) {
+    // Enhanced Notification System
+    function showNotification(type, title, message, duration = 5000, details = null) {
         const container = document.querySelector('.notification-container');
         const notification = document.createElement('div');
         notification.className = `notification ${type}`;
         
-        const icon = type === 'success' ? 'check-circle' : 'exclamation-circle';
+        let icon, color;
+        switch(type) {
+            case 'success':
+                icon = 'check-circle';
+                color = '#10b981';
+                break;
+            case 'error':
+                icon = 'exclamation-circle';
+                color = '#ef4444';
+                break;
+            case 'warning':
+                icon = 'exclamation-triangle';
+                color = '#f59e0b';
+                break;
+            case 'info':
+                icon = 'info-circle';
+                color = '#3b82f6';
+                break;
+            case 'loading':
+                icon = 'spinner fa-spin';
+                color = '#6366f1';
+                break;
+            default:
+                icon = 'info-circle';
+                color = '#6b7280';
+        }
+        
+        const detailsHtml = details ? `
+            <div class="notification-details">
+                ${Object.entries(details).map(([key, value]) => 
+                    `<div class="detail-item">
+                        <span class="detail-label">${key}:</span>
+                        <span class="detail-value">${value}</span>
+                    </div>`
+                ).join('')}
+            </div>
+        ` : '';
         
         notification.innerHTML = `
-            <div class="notification-icon">
+            <div class="notification-icon" style="color: ${color}">
                 <i class="fas fa-${icon}"></i>
             </div>
             <div class="notification-content">
                 <div class="notification-title">${title}</div>
-                <div class="notification-message ${message.length > 50 ? 'has-tooltip' : ''}">${message}</div>
+                <div class="notification-message">${message}</div>
+                ${detailsHtml}
             </div>
             <div class="notification-actions">
                 <button class="notification-close" onclick="dismissNotification(this.parentElement.parentElement)">
@@ -1032,22 +1054,6 @@
         
         container.appendChild(notification);
 
-        // Add tooltip functionality for long messages
-        const messageElement = notification.querySelector('.notification-message');
-        if (messageElement.classList.contains('has-tooltip')) {
-            messageElement.addEventListener('mouseenter', () => {
-                clearTimeout(tooltipTimeout);
-                tooltipTimeout = setTimeout(() => {
-                    showTooltip(messageElement, message);
-                }, 300);
-            });
-
-            messageElement.addEventListener('mouseleave', () => {
-                clearTimeout(tooltipTimeout);
-                hideTooltip();
-            });
-        }
-        
         // Initialize drag events
         let startX, startY, currentX, currentY;
         let isDragging = false;
@@ -1151,10 +1157,14 @@
         document.addEventListener('touchmove', handleDragMove, { passive: false });
         document.addEventListener('touchend', handleDragEnd);
         
-        // Auto remove after duration
-        setTimeout(() => {
-            dismissNotification(notification, 'slideOut');
-        }, duration);
+        // Auto remove after duration (except for loading notifications)
+        if (type !== 'loading') {
+            setTimeout(() => {
+                dismissNotification(notification, 'slideOut');
+            }, duration);
+        }
+        
+        return notification;
     }
 
     function dismissNotification(notification, animation = 'slideOut') {
@@ -1162,7 +1172,485 @@
         setTimeout(() => notification.remove(), 300);
     }
 
-    // Function to place order
+    // Standardized Response Handler for all trading actions
+    function handleTradingResponse(data, button, originalText, actionType, symbol = null) {
+        // Remove loading notification
+        if (window.currentLoadingNotification) {
+            dismissNotification(window.currentLoadingNotification);
+            window.currentLoadingNotification = null;
+        }
+
+        if (data.success) {
+            // Success response
+            const successMessages = {
+                'order': {
+                    title: 'Order Placed Successfully! 🎉',
+                    message: data.message || `${symbol} ${actionType} order has been executed`,
+                    duration: 6000
+                },
+                'exit_all': {
+                    title: 'All Positions Exited! ✅',
+                    message: data.message || 'Successfully closed all open positions',
+                    duration: 8000
+                },
+                'exit_position': {
+                    title: 'Position Exited! ✅',
+                    message: data.message || `Successfully exited ${symbol} position`,
+                    duration: 6000
+                }
+            };
+
+            const config = successMessages[actionType];
+            
+            // Show success notification
+            showNotification(
+                'success',
+                config.title,
+                config.message,
+                config.duration
+            );
+
+            // Restore original button text and immediately re-enable
+            button.innerHTML = originalText;
+            button.disabled = false;
+
+            // Handle post-success actions
+            if (actionType === 'order' || actionType === 'exit_position') {
+                // Refresh portfolio after a short delay
+                setTimeout(() => {
+                    updatePortfolio();
+                }, 1000);
+            } else if (actionType === 'exit_all') {
+                // Refresh the page after a short delay
+                setTimeout(() => {
+                    window.location.reload();
+                }, 3000);
+            }
+        } else {
+            // Error response - Check error code and show specific messages
+            let errorTitle, errorMessage, errorType = 'error';
+            
+            // Get error code from response
+            const errorCode = data.error_code || 'UNKNOWN_ERROR';
+            
+            // Define error messages based on error codes
+            const errorCodeMessages = {
+                'INSUFFICIENT_FUNDS': {
+                    title: 'Insufficient Funds ❌',
+                    message: 'Your account does not have sufficient funds to place this order',
+                    type: 'warning',
+                    suggestion: 'Please check your account balance and margin requirements'
+                },
+                'MARKET_CLOSED': {
+                    title: 'Market Closed ❌',
+                    message: 'Market is currently closed',
+                    type: 'warning',
+                    suggestion: 'Please try during market hours (9:15 AM - 3:30 PM IST)'
+                },
+                'INVALID_SYMBOL': {
+                    title: 'Invalid Symbol ❌',
+                    message: 'The trading symbol is invalid or not available',
+                    type: 'error',
+                    suggestion: 'The option contract may not be available or may have expired'
+                },
+                'TOKEN_EXPIRED': {
+                    title: 'Session Expired ❌',
+                    message: 'Your trading session has expired',
+                    type: 'error',
+                    suggestion: 'Please login again to continue trading'
+                },
+                'RATE_LIMIT': {
+                    title: 'Rate Limit Exceeded ❌',
+                    message: 'Too many requests. Please wait a moment',
+                    type: 'warning',
+                    suggestion: 'Please wait a few seconds before trying again'
+                },
+                'ORDER_REJECTED': {
+                    title: 'Order Rejected ❌',
+                    message: 'Order was rejected by the exchange',
+                    type: 'error',
+                    suggestion: 'Please check order parameters and try again'
+                },
+                'INSUFFICIENT_HOLDINGS': {
+                    title: 'Insufficient Holdings ❌',
+                    message: 'Insufficient holdings for this operation',
+                    type: 'error',
+                    suggestion: 'The position may have already been closed or modified'
+                },
+                'POSITION_CLOSED': {
+                    title: 'Position Already Closed ❌',
+                    message: 'Position is already closed',
+                    type: 'warning',
+                    suggestion: 'The position may have been closed by another order'
+                },
+                'ORDER_NOT_FOUND': {
+                    title: 'Order Not Found ❌',
+                    message: 'Order not found',
+                    type: 'error',
+                    suggestion: 'The order may have already been executed or cancelled'
+                },
+                'KITE_API_ERROR': {
+                    title: 'Trading Error ❌',
+                    message: data.error || 'An error occurred while processing your request',
+                    type: 'error',
+                    suggestion: 'Please check your parameters and try again'
+                },
+                'UNKNOWN_ERROR': {
+                    title: 'Unknown Error ❌',
+                    message: data.error || 'An unexpected error occurred',
+                    type: 'error',
+                    suggestion: 'Please try again or contact support'
+                }
+            };
+            
+            // Get error configuration based on error code
+            const errorConfig = errorCodeMessages[errorCode] || errorCodeMessages['UNKNOWN_ERROR'];
+            
+            // Prepare detailed error information
+            let notificationDetails = null;
+            
+            if (data.error_code || data.suggestion || data.details) {
+                notificationDetails = {};
+                
+                if (data.error_code) {
+                    notificationDetails['Error Code'] = data.error_code;
+                }
+                
+                if (data.suggestion) {
+                    notificationDetails['Suggestion'] = data.suggestion;
+                } else if (errorConfig.suggestion) {
+                    notificationDetails['Suggestion'] = errorConfig.suggestion;
+                }
+                
+                if (data.details) {
+                    notificationDetails['Details'] = data.details;
+                }
+                
+                // Add order info if available
+                if (data.order_info) {
+                    notificationDetails['Order Info'] = JSON.stringify(data.order_info, null, 2);
+                }
+                
+                // Add exit details if available (for exit_all)
+                if (data.exited_positions !== undefined && data.failed_positions !== undefined) {
+                    notificationDetails['Exited Positions'] = data.exited_positions;
+                    notificationDetails['Failed Positions'] = data.failed_positions;
+                }
+                
+                // Add detailed results if available
+                if (data.details && Array.isArray(data.details)) {
+                    const failedDetails = data.details.filter(d => d.status === 'failed');
+                    if (failedDetails.length > 0) {
+                        notificationDetails['Failed Details'] = failedDetails.map(d => 
+                            `${d.symbol}: ${d.user_message || d.error_message}`
+                        ).join(', ');
+                    }
+                }
+            }
+            
+            // Show error notification with specific error type and message
+            showNotification(
+                errorConfig.type,
+                errorConfig.title,
+                errorConfig.message,
+                12000, // Longer duration for detailed errors
+                notificationDetails
+            );
+
+            // Restore original button text and immediately re-enable
+            button.innerHTML = originalText;
+            button.disabled = false;
+        }
+    }
+
+    // Standardized Error Handler for network errors
+    function handleNetworkError(error, button, originalText, actionType) {
+        // Remove loading notification
+        if (window.currentLoadingNotification) {
+            dismissNotification(window.currentLoadingNotification);
+            window.currentLoadingNotification = null;
+        }
+
+        // Check if this is a network connectivity error or an API error
+        const isNetworkError = error.name === 'TypeError' && error.message.includes('fetch');
+        const isConnectionError = error.message.includes('Failed to fetch') || 
+                                 error.message.includes('NetworkError') ||
+                                 error.message.includes('ERR_NETWORK') ||
+                                 error.message.includes('ERR_INTERNET_DISCONNECTED');
+
+        if (isNetworkError || isConnectionError) {
+            // This is a true network connectivity error
+            const errorMessages = {
+                'order': 'Failed to connect to the server. Please check your internet connection.',
+                'exit_all': 'Failed to connect to the server while exiting positions',
+                'exit_position': 'Failed to connect to the server'
+            };
+
+            showNotification(
+                'error',
+                'Network Error ❌',
+                errorMessages[actionType],
+                8000
+            );
+        } else if (error.name === 'APIError') {
+            // This is an API error with JSON response data
+            try {
+                const errorData = JSON.parse(error.message);
+                
+                // Use the same error code handling as handleTradingResponse
+                const errorCode = errorData.error_code || 'UNKNOWN_ERROR';
+                
+                // Define error messages based on error codes
+                const errorCodeMessages = {
+                    'INSUFFICIENT_FUNDS': {
+                        title: 'Insufficient Funds ❌',
+                        message: 'Your account does not have sufficient funds to place this order',
+                        type: 'warning',
+                        suggestion: 'Please check your account balance and margin requirements'
+                    },
+                    'MARKET_CLOSED': {
+                        title: 'Market Closed ❌',
+                        message: 'Market is currently closed',
+                        type: 'warning',
+                        suggestion: 'Please try during market hours (9:15 AM - 3:30 PM IST)'
+                    },
+                    'INVALID_SYMBOL': {
+                        title: 'Invalid Symbol ❌',
+                        message: 'The trading symbol is invalid or not available',
+                        type: 'error',
+                        suggestion: 'The option contract may not be available or may have expired'
+                    },
+                    'TOKEN_EXPIRED': {
+                        title: 'Session Expired ❌',
+                        message: 'Your trading session has expired',
+                        type: 'error',
+                        suggestion: 'Please login again to continue trading'
+                    },
+                    'RATE_LIMIT': {
+                        title: 'Rate Limit Exceeded ❌',
+                        message: 'Too many requests. Please wait a moment',
+                        type: 'warning',
+                        suggestion: 'Please wait a few seconds before trying again'
+                    },
+                    'ORDER_REJECTED': {
+                        title: 'Order Rejected ❌',
+                        message: 'Order was rejected by the exchange',
+                        type: 'error',
+                        suggestion: 'Please check order parameters and try again'
+                    },
+                    'INSUFFICIENT_HOLDINGS': {
+                        title: 'Insufficient Holdings ❌',
+                        message: 'Insufficient holdings for this operation',
+                        type: 'error',
+                        suggestion: 'The position may have already been closed or modified'
+                    },
+                    'POSITION_CLOSED': {
+                        title: 'Position Already Closed ❌',
+                        message: 'Position is already closed',
+                        type: 'warning',
+                        suggestion: 'The position may have been closed by another order'
+                    },
+                    'ORDER_NOT_FOUND': {
+                        title: 'Order Not Found ❌',
+                        message: 'Order not found',
+                        type: 'error',
+                        suggestion: 'The order may have already been executed or cancelled'
+                    },
+                    'KITE_API_ERROR': {
+                        title: 'Trading Error ❌',
+                        message: errorData.error || 'An error occurred while processing your request',
+                        type: 'error',
+                        suggestion: 'Please check your parameters and try again'
+                    },
+                    'UNKNOWN_ERROR': {
+                        title: 'Unknown Error ❌',
+                        message: errorData.error || 'An unexpected error occurred',
+                        type: 'error',
+                        suggestion: 'Please try again or contact support'
+                    }
+                };
+                
+                const errorConfig = errorCodeMessages[errorCode] || errorCodeMessages['UNKNOWN_ERROR'];
+                
+                // Prepare error details
+                let notificationDetails = null;
+                if (errorData.error || errorData.details || errorData.error_code || errorData.suggestion) {
+                    notificationDetails = {};
+                    if (errorData.error) notificationDetails['Error'] = errorData.error;
+                    if (errorData.details) notificationDetails['Details'] = errorData.details;
+                    if (errorData.error_code) notificationDetails['Error Code'] = errorData.error_code;
+                    if (errorData.suggestion) notificationDetails['Suggestion'] = errorData.suggestion;
+                }
+                
+                showNotification(
+                    errorConfig.type,
+                    errorConfig.title,
+                    errorConfig.message,
+                    12000,
+                    notificationDetails
+                );
+                
+            } catch (parseError) {
+                console.error('Failed to parse API error:', parseError);
+                // Fallback to generic error
+                showNotification(
+                    'error',
+                    'API Error ❌',
+                    'An error occurred while processing your request',
+                    10000,
+                    { 'Error': error.message }
+                );
+            }
+        } else if (error.name === 'HTTPError') {
+            // This is an HTTP error without JSON data
+            const errorMessages = {
+                'order': 'Order placement failed',
+                'exit_all': 'Failed to exit positions',
+                'exit_position': 'Failed to exit position'
+            };
+
+            showNotification(
+                'error',
+                `${errorMessages[actionType]} ❌`,
+                error.message,
+                10000,
+                { 'Status': `${error.status} ${error.statusText}` }
+            );
+        } else {
+            // This might be an API error that was caught as a network error
+            // Try to extract error information from the error message
+            let errorDetails = null;
+            let errorCode = 'UNKNOWN_ERROR';
+            let userMessage = error.message;
+            let suggestion = 'Please try again or contact support';
+            
+            // Check if the error message contains JSON-like data
+            if (error.message && (error.message.includes('{') || error.message.includes('error'))) {
+                try {
+                    // Try to parse JSON from error message
+                    const errorData = JSON.parse(error.message);
+                    
+                    // Check if it contains error code
+                    if (errorData.error_code) {
+                        errorCode = errorData.error_code;
+                        
+                        // Define error messages based on error codes (same as in handleTradingResponse)
+                        const errorCodeMessages = {
+                            'INSUFFICIENT_FUNDS': {
+                                title: 'Insufficient Funds ❌',
+                                message: 'Your account does not have sufficient funds to place this order',
+                                type: 'warning',
+                                suggestion: 'Please check your account balance and margin requirements'
+                            },
+                            'MARKET_CLOSED': {
+                                title: 'Market Closed ❌',
+                                message: 'Market is currently closed',
+                                type: 'warning',
+                                suggestion: 'Please try during market hours (9:15 AM - 3:30 PM IST)'
+                            },
+                            'INVALID_SYMBOL': {
+                                title: 'Invalid Symbol ❌',
+                                message: 'The trading symbol is invalid or not available',
+                                type: 'error',
+                                suggestion: 'The option contract may not be available or may have expired'
+                            },
+                            'TOKEN_EXPIRED': {
+                                title: 'Session Expired ❌',
+                                message: 'Your trading session has expired',
+                                type: 'error',
+                                suggestion: 'Please login again to continue trading'
+                            },
+                            'RATE_LIMIT': {
+                                title: 'Rate Limit Exceeded ❌',
+                                message: 'Too many requests. Please wait a moment',
+                                type: 'warning',
+                                suggestion: 'Please wait a few seconds before trying again'
+                            },
+                            'ORDER_REJECTED': {
+                                title: 'Order Rejected ❌',
+                                message: 'Order was rejected by the exchange',
+                                type: 'error',
+                                suggestion: 'Please check order parameters and try again'
+                            },
+                            'INSUFFICIENT_HOLDINGS': {
+                                title: 'Insufficient Holdings ❌',
+                                message: 'Insufficient holdings for this operation',
+                                type: 'error',
+                                suggestion: 'The position may have already been closed or modified'
+                            },
+                            'POSITION_CLOSED': {
+                                title: 'Position Already Closed ❌',
+                                message: 'Position is already closed',
+                                type: 'warning',
+                                suggestion: 'The position may have been closed by another order'
+                            },
+                            'ORDER_NOT_FOUND': {
+                                title: 'Order Not Found ❌',
+                                message: 'Order not found',
+                                type: 'error',
+                                suggestion: 'The order may have already been executed or cancelled'
+                            },
+                            'KITE_API_ERROR': {
+                                title: 'Trading Error ❌',
+                                message: errorData.error || 'An error occurred while processing your request',
+                                type: 'error',
+                                suggestion: 'Please check your parameters and try again'
+                            }
+                        };
+                        
+                        const errorConfig = errorCodeMessages[errorCode] || {
+                            title: 'Unknown Error ❌',
+                            message: errorData.error || 'An unexpected error occurred',
+                            type: 'error',
+                            suggestion: 'Please try again or contact support'
+                        };
+                        
+                        userMessage = errorConfig.message;
+                        suggestion = errorConfig.suggestion;
+                    }
+                    
+                    // Prepare error details
+                    if (errorData.error || errorData.details) {
+                        errorDetails = {};
+                        if (errorData.error) errorDetails['Error'] = errorData.error;
+                        if (errorData.details) errorDetails['Details'] = errorData.details;
+                        if (errorData.error_code) errorDetails['Error Code'] = errorData.error_code;
+                        if (errorData.suggestion) errorDetails['Suggestion'] = errorData.suggestion;
+                    }
+                } catch (e) {
+                    // If parsing fails, use the raw error message
+                    errorDetails = {
+                        'Error': error.message
+                    };
+                }
+            } else {
+                // Use the error message as is
+                errorDetails = {
+                    'Error': error.message
+                };
+            }
+
+            const errorMessages = {
+                'order': 'Order placement failed',
+                'exit_all': 'Failed to exit positions',
+                'exit_position': 'Failed to exit position'
+            };
+
+            showNotification(
+                'error',
+                `${errorMessages[actionType]} ❌`,
+                userMessage,
+                12000,
+                errorDetails
+            );
+        }
+
+        // Restore original button text and immediately re-enable
+        button.innerHTML = originalText;
+        button.disabled = false;
+    }
+
+    // Enhanced Order Placement Function
     function placeOrder(symbol, type) {
         let quantity = 1;
         
@@ -1172,8 +1660,22 @@
             quantity = document.getElementById('banknifty-quantity').value;
         }
         
-        // Placeholder - implement actual order placement
-        console.log(`Placing order: ${symbol} ${type}, Quantity: ${quantity}`);
+        // Track order placement
+        trackOrderPlacement(symbol, type, quantity);
+        
+        // Show loading notification
+        window.currentLoadingNotification = showNotification(
+            'loading',
+            'Placing Order...',
+            `Processing ${symbol} ${type} order`,
+            0 // No auto-dismiss
+        );
+        
+        // Disable the button during processing
+        const button = event.target;
+        const originalText = button.innerHTML;
+        button.disabled = true;
+        button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
         
         // Send order to server
         fetch('/place_order/', {
@@ -1188,35 +1690,35 @@
                 quantity: quantity
             }),
         })
-        .then(response => response.json())
-        .then(data => {
-            console.log('Order placed:', data);
-            if (data.success) {
-                showNotification(
-                    'success',
-                    'Order Placed Successfully',
-                    data.message
-                );
-                
-                // Refresh positions and orders after a short delay
-                setTimeout(() => {
-                    // Here you would update the positions table
-                }, 1000);
-            } else {
-                showNotification(
-                    'error',
-                    'Order Failed',
-                    `${data.error}: ${data.details || ''}`
-                );
+        .then(response => {
+            if (!response.ok) {
+                // Try to get the error response as JSON
+                return response.json().then(errorData => {
+                    // Create a custom error with the JSON data
+                    const customError = new Error();
+                    customError.name = 'APIError';
+                    customError.message = JSON.stringify(errorData);
+                    customError.status = response.status;
+                    customError.statusText = response.statusText;
+                    throw customError;
+                }).catch(parseError => {
+                    // If JSON parsing fails, create error with status info
+                    const customError = new Error();
+                    customError.name = 'HTTPError';
+                    customError.message = `HTTP ${response.status}: ${response.statusText}`;
+                    customError.status = response.status;
+                    customError.statusText = response.statusText;
+                    throw customError;
+                });
             }
+            return response.json();
+        })
+        .then(data => {
+            handleTradingResponse(data, button, originalText, 'order', symbol);
         })
         .catch(error => {
             console.error('Error placing order:', error);
-            showNotification(
-                'error',
-                'Error',
-                'Failed to place order. Please try again.'
-            );
+            handleNetworkError(error, button, originalText, 'order');
         });
     }
     
@@ -1237,8 +1739,29 @@
         event.target.classList.add('active');
     }
 
-    // Exit All Trades Function
+    // Enhanced Exit All Trades Function
     function exitAllTrades() {
+        // Show confirmation dialog
+        if (!confirm('Are you sure you want to exit ALL positions? This action cannot be undone.')) {
+            return;
+        }
+
+        // Track exit all positions
+        trackExitAllPositions();
+
+        // Show loading notification
+        window.currentLoadingNotification = showNotification(
+            'loading',
+            'Exiting All Positions...',
+            'Processing exit orders for all open positions',
+            0 // No auto-dismiss
+        );
+
+        // Disable the exit button during processing
+        const exitButton = document.querySelector('.exit-all-btn');
+        const originalText = exitButton.innerHTML;
+        exitButton.disabled = true;
+        exitButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Exiting...';
 
         fetch('/exit_all/', {
             method: 'POST',
@@ -1247,35 +1770,107 @@
                 'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
             }
         })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                showNotification('success', 'Success', 'All trades exited successfully');
-                // Refresh the page after a short delay
-                setTimeout(() => {
-                    window.location.reload();
-                }, 1500);
-            } else {
-                showNotification('error', 'Error', data.error || 'Failed to exit trades');
+        .then(response => {
+            if (!response.ok) {
+                // Try to get the error response as JSON
+                return response.json().then(errorData => {
+                    // Create a custom error with the JSON data
+                    const customError = new Error();
+                    customError.name = 'APIError';
+                    customError.message = JSON.stringify(errorData);
+                    customError.status = response.status;
+                    customError.statusText = response.statusText;
+                    throw customError;
+                }).catch(parseError => {
+                    // If JSON parsing fails, create error with status info
+                    const customError = new Error();
+                    customError.name = 'HTTPError';
+                    customError.message = `HTTP ${response.status}: ${response.statusText}`;
+                    customError.status = response.status;
+                    customError.statusText = response.statusText;
+                    throw customError;
+                });
             }
+            return response.json();
+        })
+        .then(data => {
+            handleTradingResponse(data, exitButton, originalText, 'exit_all');
         })
         .catch(error => {
-            showNotification('error', 'Error', 'Failed to exit trades: ' + error.message);
+            console.error('Error exiting positions:', error);
+            handleNetworkError(error, exitButton, originalText, 'exit_all');
         });
     }
 
-    // Function to exit position
+    // Enhanced Function to exit position
     function exitPosition(symbol) {
-        if (confirm(`Are you sure you want to exit position for ${symbol}?`)) {
-            // Implement position exit logic
-            console.log(`Exiting position for ${symbol}`);
+        if (!confirm(`Are you sure you want to exit position for ${symbol}?`)) {
+            return;
         }
+
+        // Track position exit
+        trackPositionExit(symbol);
+
+        // Show loading notification
+        window.currentLoadingNotification = showNotification(
+            'loading',
+            'Exiting Position...',
+            `Processing exit order for ${symbol}`,
+            0 // No auto-dismiss
+        );
+
+        // Disable the exit button during processing
+        const button = event.target;
+        const originalText = button.innerHTML;
+        button.disabled = true;
+        button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Exiting...';
+
+        // Send exit request to server
+        fetch('/exit_position/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            },
+            body: JSON.stringify({
+                symbol: symbol
+            }),
+        })
+        .then(response => {
+            if (!response.ok) {
+                // Try to get the error response as JSON
+                return response.json().then(errorData => {
+                    // Create a custom error with the JSON data
+                    const customError = new Error();
+                    customError.name = 'APIError';
+                    customError.message = JSON.stringify(errorData);
+                    customError.status = response.status;
+                    customError.statusText = response.statusText;
+                    throw customError;
+                }).catch(parseError => {
+                    // If JSON parsing fails, create error with status info
+                    const customError = new Error();
+                    customError.name = 'HTTPError';
+                    customError.message = `HTTP ${response.status}: ${response.statusText}`;
+                    customError.status = response.status;
+                    customError.statusText = response.statusText;
+                    throw customError;
+                });
+            }
+            return response.json();
+        })
+        .then(data => {
+            handleTradingResponse(data, button, originalText, 'exit_position', symbol);
+        })
+        .catch(error => {
+            console.error('Error exiting position:', error);
+            handleNetworkError(error, button, originalText, 'exit_position');
+        });
     }
 
     // Function to modify stop loss
     function modifySL(symbol) {
         // Implement stop loss modification logic
-        console.log(`Modifying stop loss for ${symbol}`);
     }
 
     // User Profile Tooltip
@@ -1376,6 +1971,95 @@
             } else {
                 startUpdates();
             }
+        });
+    });
+
+    // Track page views
+    gtag('event', 'page_view', {
+        page_title: 'Dashboard',
+        page_location: window.location.href
+    });
+
+    // Track order placement
+    function trackOrderPlacement(index, direction, quantity) {
+        gtag('event', 'place_order', {
+            event_category: 'Trading',
+            event_label: `${index} ${direction}`,
+            value: quantity,
+            custom_parameter_1: index,
+            custom_parameter_2: direction,
+            custom_parameter_3: quantity
+        });
+    }
+
+    // Track position exit
+    function trackPositionExit(symbol) {
+        gtag('event', 'exit_position', {
+            event_category: 'Trading',
+            event_label: symbol,
+            custom_parameter_1: symbol
+        });
+    }
+
+    // Track exit all positions
+    function trackExitAllPositions() {
+        gtag('event', 'exit_all_positions', {
+            event_category: 'Trading',
+            event_label: 'Exit All'
+        });
+    }
+
+    // Track login events
+    function trackLogin(provider) {
+        gtag('event', 'login', {
+            event_category: 'Authentication',
+            event_label: provider,
+            custom_parameter_1: provider
+        });
+    }
+
+    // Track logout events
+    function trackLogout() {
+        gtag('event', 'logout', {
+            event_category: 'Authentication',
+            event_label: 'Logout'
+        });
+    }
+</script>
+
+<!-- Bootstrap JS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+<!-- Add this script to make anchor links work with fixed navbar -->
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Add offset for anchor links to account for fixed navbar
+        const navbarHeight = document.querySelector('.navbar').offsetHeight;
+        
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                
+                const targetId = this.getAttribute('href').substring(1);
+                if (!targetId) return;
+                
+                const targetElement = document.getElementById(targetId);
+                if (!targetElement) return;
+                
+                const offsetTop = targetElement.getBoundingClientRect().top + window.pageYOffset - navbarHeight - 20;
+                
+                window.scrollTo({
+                    top: offsetTop,
+                    behavior: 'smooth'
+                });
+                
+                // Update active state in navbar
+                document.querySelectorAll('.nav-link').forEach(navLink => {
+                    navLink.classList.remove('active');
+                });
+                
+                this.classList.add('active');
+            });
         });
     });
 </script>

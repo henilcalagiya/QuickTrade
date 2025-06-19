@@ -3,12 +3,12 @@ from django.shortcuts import render, redirect
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt, ensure_csrf_cookie
 from django.views.decorators.http import require_http_methods
-from django.contrib.auth.decorators import login_required
 from .auth.zerodha_auth import ZerodhaAuth
 from .auth.fyers_auth import FyersAuth
 from .kite_trade import KiteApp
 from functools import wraps
-from .fyers_utils import get_ltp
+from .fyers_utils import get_ltp, get_market_data_simple, FyersService, get_next_expiry_sdk
+from .config import FYERS_REDIRECT_URL, ZERODHA_REDIRECT_URL, GOOGLE_ANALYTICS_ID
 
 def is_authenticated(request):
     """Check if user is authenticated with both Zerodha and Fyers"""
@@ -118,14 +118,15 @@ def zerodha_login(request):
                 # Store credentials in session
                 request.session['api_key'] = api_key
                 request.session['api_secret'] = api_secret
+                request.session['zerodha_redirect_uri'] = ZERODHA_REDIRECT_URL
                 return redirect(login_url)
             else:
                 return render(request, 'zerodha_login.html', {'error': 'Failed to generate login URL'})
         except Exception:
             return render(request, 'zerodha_login.html', {'error': 'Failed to connect to Zerodha. Please check your credentials.'})
     
-    # GET request - show login form
-    return render(request, 'zerodha_login.html')
+    # GET request - show login form with redirect URL
+    return render(request, 'zerodha_login.html', {'ZERODHA_REDIRECT_URL': ZERODHA_REDIRECT_URL})
 
 @require_http_methods(["GET"])
 def zerodha_callback(request):
@@ -169,16 +170,12 @@ def fyers_login(request):
                 data = json.loads(request.body)
                 client_id = data.get('client_id')
                 client_secret = data.get('client_secret')
-                redirect_uri = data.get('redirect_uri')
-                response_type = data.get('response_type', 'code')  # Default to 'code'
             else:
                 client_id = request.POST.get('client_id')
                 client_secret = request.POST.get('client_secret')
-                redirect_uri = request.POST.get('redirect_uri')
-                response_type = request.POST.get('response_type', 'code')  # Default to 'code'
             
             # Validate required fields
-            if not all([client_id, client_secret, redirect_uri]):
+            if not all([client_id, client_secret]):
                 return JsonResponse({
                     'status': 'error',
                     'message': 'All fields are required'
@@ -190,6 +187,10 @@ def fyers_login(request):
                     'status': 'error',
                     'message': 'Client ID must be in format XXXXX-100'
                 }, status=400)
+            
+            # Use redirect URI from config
+            redirect_uri = FYERS_REDIRECT_URL
+            response_type = "code"
             
             # Store in session for callback
             request.session['fyers_client_id'] = client_id
@@ -216,9 +217,8 @@ def fyers_login(request):
                 'auth_url': auth_url
             })
         else:
-            # If GET request, show the form with the correct redirect URL
-            redirect_uri = request.build_absolute_uri('/fyers/auth/')
-            return render(request, 'fyers_login.html', {'redirect_uri': redirect_uri})
+            # If GET request, show the form with the redirect URL from config
+            return render(request, 'fyers_login.html', {'FYERS_REDIRECT_URL': FYERS_REDIRECT_URL})
     except Exception as e:
         return JsonResponse({
             'status': 'error',
@@ -277,24 +277,61 @@ def dashboard(request):
         # Get portfolio data
         portfolio = kite.get_portfolio()
         
-        # Get current prices
+        # Get market data including expiry dates using FyersService
+        market_data = get_market_data_simple(request)
+        
+        # Get expiry dates for both indices using the new function
+        expiry_dates = {}
         try:
-            nifty_ltp = get_ltp(request, 'NIFTY')
-            banknifty_ltp = get_ltp(request, 'BANKNIFTY')
+            # Check if we already have expiry data in session for NIFTY
+            nifty_expiry = request.session.get('nifty_expiry_date')
+            nifty_type = request.session.get('nifty_expiry_type')
+            
+            if nifty_expiry and nifty_type:
+                expiry_dates['NIFTY'] = {
+                    'date': nifty_expiry,
+                    'type': nifty_type
+                }
+            else:
+                # Get expiry for NIFTY from API if not in session
+                nifty_expiry = get_next_expiry_sdk(request, "NIFTY")
+                if nifty_expiry:
+                    nifty_type = request.session.get('nifty_expiry_type', 'WEEKLY')
+                    expiry_dates['NIFTY'] = {
+                        'date': nifty_expiry,
+                        'type': nifty_type
+                    }
+            
+            # Check if we already have expiry data in session for BANKNIFTY
+            banknifty_expiry = request.session.get('banknifty_expiry_date')
+            banknifty_type = request.session.get('banknifty_expiry_type')
+            
+            if banknifty_expiry and banknifty_type:
+                expiry_dates['BANKNIFTY'] = {
+                    'date': banknifty_expiry,
+                    'type': banknifty_type
+                }
+            else:
+                # Get expiry for BANKNIFTY from API if not in session
+                banknifty_expiry = get_next_expiry_sdk(request, "BANKNIFTY")
+                if banknifty_expiry:
+                    banknifty_type = request.session.get('banknifty_expiry_type', 'WEEKLY')
+                    expiry_dates['BANKNIFTY'] = {
+                        'date': banknifty_expiry,
+                        'type': banknifty_type
+                    }
+            
         except Exception as e:
-            print(f"Error fetching LTP: {str(e)}")
-            nifty_ltp = 0
-            banknifty_ltp = 0
+            expiry_dates = {}
         
         return render(request, 'dashboard.html', {
             'positions': portfolio['positions'],
             'orders': portfolio['orders'],
             'history': portfolio['history'],
-            'nifty_ltp': nifty_ltp,
-            'banknifty_ltp': banknifty_ltp
+            'expiry_dates': expiry_dates,
+            'index_prices': market_data.get('prices', {})
         })
     except Exception as e:
-        print(f"Error in dashboard: {str(e)}")
         return render(request, 'QuickTradeApp/error.html', {'error': str(e)})
 
 @require_http_methods(["GET"])
@@ -338,55 +375,7 @@ def fyers_auth_redirect(request):
         return redirect('dashboard')
         
     except Exception as e:
-        print(f"Error in fyers_auth_redirect: {str(e)}")
         return redirect('/login/?error=Authentication failed')
-
-@csrf_exempt
-@require_http_methods(["POST"])
-def store_fyers_credentials(request):
-    """Store Fyers credentials in Django session"""
-    try:
-        data = json.loads(request.body)
-        
-        # Initialize FyersAuth to check for existing valid token
-        fyers = FyersAuth(
-            client_id=data.get('client_id'),
-            client_secret=data.get('client_secret'),
-            redirect_uri=data.get('redirect_uri')
-        )
-        
-        # Check if we have a valid token
-        if fyers.is_token_valid():
-            # Store credentials in session
-            request.session['fyers_client_id'] = data.get('client_id')
-            request.session['fyers_client_secret'] = data.get('client_secret')
-            request.session['fyers_redirect_uri'] = data.get('redirect_uri')
-            request.session['fyers_access_token'] = fyers.access_token
-            if fyers.refresh_token:
-                request.session['fyers_refresh_token'] = fyers.refresh_token
-                
-            return JsonResponse({
-                'status': 'success',
-                'message': 'Valid token found',
-                'redirect': '/dashboard/'
-            })
-        
-        # Store credentials in session
-        request.session['fyers_client_id'] = data.get('client_id')
-        request.session['fyers_client_secret'] = data.get('client_secret')
-        request.session['fyers_redirect_uri'] = data.get('redirect_uri')
-        request.session['fyers_state'] = data.get('state')
-        
-        return JsonResponse({
-            'status': 'success',
-            'message': 'Credentials stored successfully'
-        })
-        
-    except Exception as e:
-        return JsonResponse({
-            'status': 'error',
-            'message': str(e)
-        }, status=500)
 
 @ensure_csrf_cookie
 def place_order(request):
@@ -424,7 +413,6 @@ def place_order(request):
             }, status=400)
             
         actual_quantity = user_quantity * lot_size
-        print(f"User input: {user_quantity} lots, Actual quantity: {actual_quantity}")
             
         # Check authentication
         api_key = request.session.get('api_key')
@@ -432,10 +420,18 @@ def place_order(request):
         fyers_client_id = request.session.get('fyers_client_id')
         fyers_access_token = request.session.get('fyers_access_token')
         
+        # For order placement, we need both Zerodha and Fyers credentials
+        # Zerodha for order placement, Fyers for LTP and symbol generation
         if not all([api_key, access_token, fyers_client_id, fyers_access_token]):
+            missing_creds = []
+            if not api_key or not access_token:
+                missing_creds.append("Zerodha")
+            if not fyers_client_id or not fyers_access_token:
+                missing_creds.append("Fyers")
+            
             return JsonResponse({
-                'error': 'Not authenticated',
-                'details': 'Please login first'
+                'error': f'Not authenticated with {", ".join(missing_creds)}',
+                'details': f'Please login with {", ".join(missing_creds)} first'
             }, status=401)
             
         # Initialize KiteApp
@@ -453,10 +449,10 @@ def place_order(request):
         # Place the order
         try:
             order_id = kite.place_order(
+                request=request,
                 index=index,
                 direction=direction,
-                quantity=actual_quantity,
-                request=request
+                quantity=actual_quantity
             )
             return JsonResponse({
                 'success': True,
@@ -465,12 +461,46 @@ def place_order(request):
             })
         except Exception as e:
             error_message = str(e)
-            return JsonResponse({
-                'error': 'Failed to place order',
-                'details': error_message
-            }, status=500)
+            
+            # Check if this is a detailed Kite error
+            if error_message.startswith('KITE_ERROR:'):
+                # Parse the detailed error information
+                parts = error_message.split(':', 4)  # Split into 5 parts
+                if len(parts) >= 5:
+                    error_code = parts[1]
+                    user_message = parts[2]
+                    suggestion = parts[3]
+                    original_error = parts[4]
+                    
+                    return JsonResponse({
+                        'success': False,
+                        'error': user_message,
+                        'error_code': error_code,
+                        'suggestion': suggestion,
+                        'details': original_error,
+                        'order_info': {
+                            'index': index,
+                            'direction': direction,
+                            'quantity': user_quantity,
+                            'actual_quantity': actual_quantity
+                        }
+                    }, status=400)
+                else:
+                    # Fallback if parsing fails
+                    return JsonResponse({
+                        'success': False,
+                        'error': 'Order placement failed',
+                        'details': error_message
+                    }, status=500)
+            else:
+                # Handle other types of errors
+                return JsonResponse({
+                    'success': False,
+                    'error': 'Failed to place order',
+                    'details': error_message
+                }, status=500)
                 
-    except json.JSONDecodeError:
+    except json.JSONDecodeError as e:
         return JsonResponse({
             'error': 'Invalid JSON in request body'
         }, status=400)
@@ -486,19 +516,54 @@ def exit_all(request):
     """Handle exiting all positions"""
     try:
         # Exit all positions using KiteApp
-        print("Exiting all positions")
-        KiteApp(request=request).exit_all_positions()
+        result = KiteApp(request=request).exit_all_positions()
 
-        return JsonResponse({
-            'status': 'success',
-            'message': 'All positions exited successfully'
-        })
+        if result['success']:
+            return JsonResponse({
+                'success': True,
+                'message': result['message'],
+                'exited_positions': result['exited_positions'],
+                'failed_positions': result['failed_positions'],
+                'details': result['details']
+            })
+        else:
+            return JsonResponse({
+                'success': False,
+                'error': result['message'],
+                'exited_positions': result['exited_positions'],
+                'failed_positions': result['failed_positions'],
+                'details': result['details']
+            }, status=400)
 
     except Exception as e:
-        return JsonResponse({
-            'status': 'error',
-            'message': str(e)
-        }, status=500)
+        error_message = str(e)
+        
+        # Check if this is a detailed exit error
+        if error_message.startswith('EXIT_ALL_ERROR:'):
+            parts = error_message.split(':', 3)
+            if len(parts) >= 4:
+                error_code = parts[1]
+                user_message = parts[2]
+                original_error = parts[3]
+                
+                return JsonResponse({
+                    'success': False,
+                    'error': user_message,
+                    'error_code': error_code,
+                    'details': original_error
+                }, status=500)
+            else:
+                return JsonResponse({
+                    'success': False,
+                    'error': 'Failed to exit positions',
+                    'details': error_message
+                }, status=500)
+        else:
+            return JsonResponse({
+                'success': False,
+                'error': 'An unexpected error occurred',
+                'details': error_message
+            }, status=500)
 
 @require_http_methods(["GET"])
 def get_index_price(request):
@@ -511,44 +576,116 @@ def get_index_price(request):
                 'message': 'Index parameter is required'
             }, status=400)
 
-        # Get Fyers credentials from session
-        fyers_client_id = request.session.get('fyers_client_id')
-        fyers_access_token = request.session.get('fyers_access_token')
-        
-        if not fyers_client_id or not fyers_access_token:
+        # Use FyersService to get index price
+        try:
+            fyers_service = FyersService(request)
+            price = fyers_service.get_index_price(index)
+            
+            return JsonResponse({
+                'status': 'success',
+                'index': index,
+                'price': price
+            })
+        except Exception as e:
             return JsonResponse({
                 'status': 'error',
-                'message': 'Fyers credentials not found in session'
-            }, status=401)
-
-        # Map index to Fyers symbol
-        symbol_map = {
-            "NIFTY": "NSE:NIFTY50-INDEX",
-            "BANKNIFTY": "NSE:NIFTYBANK-INDEX"
-        }
-        
-        fyers_symbol = symbol_map.get(index)
-        if not fyers_symbol:
-            return JsonResponse({
-                'status': 'error',
-                'message': f'Invalid index: {index}'
-            }, status=400)
-
-        # Get LTP using Fyers API
-        ltp = get_ltp(
-            client_id=fyers_client_id,
-            access_token=fyers_access_token,
-            script_name=fyers_symbol
-        )
-
-        return JsonResponse({
-            'status': 'success',
-            'index': index,
-            'price': ltp
-        })
+                'message': f'Failed to get {index} price: {str(e)}'
+            }, status=500)
 
     except Exception as e:
         return JsonResponse({
             'status': 'error',
             'message': str(e)
+        }, status=500)
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def exit_position(request):
+    """Handle exiting a specific position"""
+    try:
+        data = json.loads(request.body)
+        symbol = data.get('symbol')
+        
+        if not symbol:
+            return JsonResponse({
+                'success': False,
+                'error': 'Symbol is required'
+            }, status=400)
+            
+        # Check authentication
+        api_key = request.session.get('api_key')
+        access_token = request.session.get('access_token')
+        
+        if not api_key or not access_token:
+            return JsonResponse({
+                'success': False,
+                'error': 'Not authenticated with Zerodha',
+                'details': 'Please login with Zerodha first'
+            }, status=401)
+            
+        # Initialize KiteApp
+        try:
+            kite = KiteApp(
+                api_key=api_key,
+                access_token=access_token
+            )
+        except Exception as e:
+            return JsonResponse({
+                'success': False,
+                'error': 'Failed to initialize trading app',
+                'details': str(e)
+            }, status=500)
+            
+        # Exit the position
+        try:
+            order_id = kite.exit_position(symbol)
+            
+            return JsonResponse({
+                'success': True,
+                'order_id': order_id,
+                'message': f'Successfully exited position for {symbol}'
+            })
+            
+        except Exception as e:
+            error_message = str(e)
+            
+            # Check if this is a detailed Kite error
+            if error_message.startswith('KITE_ERROR:'):
+                parts = error_message.split(':', 4)
+                if len(parts) >= 5:
+                    error_code = parts[1]
+                    user_message = parts[2]
+                    suggestion = parts[3]
+                    original_error = parts[4]
+                    
+                    return JsonResponse({
+                        'success': False,
+                        'error': user_message,
+                        'error_code': error_code,
+                        'suggestion': suggestion,
+                        'details': original_error
+                    }, status=400)
+                else:
+                    return JsonResponse({
+                        'success': False,
+                        'error': 'Failed to exit position',
+                        'details': error_message
+                    }, status=500)
+            else:
+                return JsonResponse({
+                    'success': False,
+                    'error': 'Failed to exit position',
+                    'details': error_message
+                }, status=500)
+                
+    except json.JSONDecodeError as e:
+        return JsonResponse({
+            'success': False,
+            'error': 'Invalid JSON in request body'
+        }, status=400)
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': 'An unexpected error occurred',
+            'details': str(e)
         }, status=500)

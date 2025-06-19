@@ -54,23 +54,6 @@ class ZerodhaAuth:
         except Exception as e:
             raise
             
-    def validate_session(self, access_token):
-        """Validate the session using access token"""
-        try:
-            if not access_token:
-                raise ValueError("Access token is required")
-                
-            self.kite.set_access_token(access_token)
-            profile = self.kite.profile()
-            
-            if not profile:
-                raise ValueError("Empty profile response")
-                
-            return profile
-            
-        except Exception as e:
-            raise
-            
     def get_profile(self, access_token):
         """Get user profile"""
         try:
@@ -82,42 +65,5 @@ class ZerodhaAuth:
             if not profile:
                 raise ValueError("Empty profile response")
             return profile
-        except Exception as e:
-            raise
-            
-    def get_positions(self, access_token):
-        """Get user positions"""
-        try:
-            if not access_token:
-                raise ValueError("Access token is required")
-                
-            self.kite.set_access_token(access_token)
-            positions = self.kite.positions()
-            if not positions:
-                raise ValueError("Empty positions response")
-            return positions
-        except Exception as e:
-            raise
-            
-    def get_margins(self):
-        """Get user margins"""
-        try:
-            margins = self.kite.margins()
-            if not margins:
-                raise ValueError("Empty margins response")
-            return margins
-        except Exception as e:
-            raise
-            
-    def place_order(self, **kwargs):
-        """Place an order"""
-        try:
-            if not kwargs:
-                raise ValueError("Order parameters are required")
-                
-            order = self.kite.place_order(**kwargs)
-            if not order:
-                raise ValueError("Empty order response")
-            return order
         except Exception as e:
             raise 

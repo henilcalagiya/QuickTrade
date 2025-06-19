@@ -1,11 +1,12 @@
 {% extends 'base.html' %}
+{% load static %}
 
 {% block content %}
 <div class="container">
     <div class="row justify-content-center">
         <div class="col-md-8 col-lg-6">
             <div class="text-center mb-5">
-                <img src="https://assets-netstorage.groww.in/stock-broker/logos/fyers_logo.jpg" alt="Fyers Logo" width="160" height="80" class="mb-4">
+                <img src="{% static 'images/fyers_logo.svg' %}" alt="Fyers Logo" width="160" height="80" class="mb-4">
                 <h2 class="fw-bold mb-2">Connect to Fyers</h2>
                 <p class="text-muted">Enter your API credentials to connect your Fyers account</p>
             </div>
@@ -47,25 +48,6 @@
                             </div>
                         </div>
 
-                        <div class="mb-4">
-                            <label for="redirect_uri" class="form-label">Redirect URI</label>
-                            <div class="input-group input-group-lg">
-                                <span class="input-group-text">
-                                    <i class="fas fa-link"></i>
-                                </span>
-                                <input type="text" class="form-control" id="redirect_uri" name="redirect_uri" value="{{ redirect_uri }}" readonly>
-                            </div>
-                            <div class="form-text small">This is the callback URL you should register in your Fyers Developer account</div>
-                        </div>
-
-                        <div class="alert alert-info" role="alert">
-                            <i class="fas fa-info-circle me-2"></i>
-                            <div>
-                                <p class="mb-1"><strong>Important:</strong> Make sure your Client ID is in the correct format (e.g., "XXXXX-100") and matches exactly with what's shown in the Fyers API dashboard.</p>
-                                <p class="mb-0">Also ensure your redirect URI is correctly registered in your Fyers developer account.</p>
-                            </div>
-                        </div>
-
                         <div class="d-grid gap-3 mt-5">
                             <button type="submit" class="btn auth-btn login-btn btn-lg">
                                 <i class="fas fa-sign-in-alt me-2"></i>Connect Account
@@ -76,7 +58,52 @@
             </div>
 
             <div class="text-center mt-4">
-                <p class="text-muted small">Don't have API credentials? <a href="https://myapi.fyers.in/app" target="_blank">Get them from Fyers</a></p>
+                <p class="text-muted small">Don't have API credentials? <button type="button" class="btn btn-link p-0" data-bs-toggle="modal" data-bs-target="#apiGuideModal">Learn how to create them</button></p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- API Guide Modal -->
+<div class="modal fade" id="apiGuideModal" tabindex="-1" aria-labelledby="apiGuideModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="apiGuideModalLabel">Create API Credentials</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <ol class="mb-0">
+                    <li class="mb-3">Go to <a href="https://myapi.fyers.in/" target="_blank">Fyers API Dashboard</a></li>
+                    <li class="mb-3">Click on "Create New App"</li>
+                    <li class="mb-3">Fill in the following details:
+                        <ul class="mt-2">
+                            <li><strong>App Name:</strong> Enter your app name</li>
+                            <li><strong>Redirect URL:</strong> Enter exactly: <code>{{ FYERS_REDIRECT_URL }}</code></li>
+                            <li><strong>App Icon:</strong> Upload an image for your app (optional)</li>
+                            <li><strong>App Permissions:</strong> Enable the following:
+                                <ul>
+                                    <li>Profile Details</li>
+                                    <li>Transaction Info</li>
+                                    <li>Order Placement</li>
+                                    <li>Quotes & Market data</li>
+                                    <li>Historical Data</li>
+                                </ul>
+                            </li>
+                            <li><strong>Terms and Conditions:</strong> Accept the API usage terms</li>
+                        </ul>
+                    </li>
+                    <li class="mb-3">Click "Create" to generate your API credentials</li>
+                    <li>Copy the generated API Key and API Secret to use in this form</li>
+                </ol>
+                <div class="alert alert-info mt-3">
+                    <i class="fas fa-info-circle me-2"></i>
+                    <strong>Important:</strong> Make sure to use the exact redirect URL: <code>{{ FYERS_REDIRECT_URL }}</code>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <a href="https://myapi.fyers.in/" target="_blank" class="btn btn-primary">Go to Fyers API Dashboard</a>
             </div>
         </div>
     </div>
@@ -171,13 +198,24 @@ document.addEventListener('DOMContentLoaded', function() {
         // Check client ID format
         const clientId = document.getElementById('client_id').value;
         if (!validateClientId(clientId)) {
-            // Show custom validation error
-            document.getElementById('client_id').setCustomValidity('Client ID must be in format XXXXX-100');
-            form.classList.add('was-validated');
+            showNotification('error', 'Invalid Client ID', 'Client ID must be in format XXXXX-100');
             return;
-        } else {
-            document.getElementById('client_id').setCustomValidity('');
         }
+        
+        // Track login attempt
+        if (typeof gtag !== 'undefined') {
+            gtag('event', 'login', {
+                event_category: 'Authentication',
+                event_label: 'Fyers',
+                custom_parameter_1: 'Fyers'
+            });
+        }
+        
+        // Show loading state
+        const submitButton = form.querySelector('button[type="submit"]');
+        const originalText = submitButton.innerHTML;
+        submitButton.disabled = true;
+        submitButton.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Connecting...';
         
         if (!form.checkValidity()) {
             e.stopPropagation();
@@ -187,8 +225,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         const formData = {
             client_id: clientId,
-            client_secret: document.getElementById('client_secret').value,
-            redirect_uri: document.getElementById('redirect_uri').value
+            client_secret: document.getElementById('client_secret').value
         };
 
         try {
@@ -211,6 +248,9 @@ document.addEventListener('DOMContentLoaded', function() {
         } catch (error) {
             console.error('Error:', error);
             alert('Error occurred during login');
+        } finally {
+            submitButton.disabled = false;
+            submitButton.innerHTML = originalText;
         }
     });
 });

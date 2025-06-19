@@ -12,5 +12,6 @@ urlpatterns = [
     path('logout/', views.logout, name='logout'),
     path('place_order/', views.place_order, name='place_order'),  # Place order endpoint
     path('exit_all/', views.exit_all, name='exit_all'),  # Exit all positions endpoint
+    path('exit_position/', views.exit_position, name='exit_position'),  # Exit specific position endpoint
     path('get_index_price/', views.get_index_price, name='get_index_price'),  # Get index price endpoint
 ]

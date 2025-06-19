@@ -1,11 +1,12 @@
 {% extends 'base.html' %}
+{% load static %}
 
 {% block content %}
 <div class="container">
     <div class="row justify-content-center">
         <div class="col-md-8 col-lg-6">
             <div class="text-center mb-5">
-                <img src="https://zerodha.com/static/images/logo.svg" alt="Zerodha Logo" width="160" class="mb-4">
+                <img src="{% static 'images/zerodha_logo.svg' %}" alt="Zerodha Logo" width="160" class="mb-4">
                 <h2 class="fw-bold mb-2">Connect to Zerodha</h2>
                 <p class="text-muted">Enter your API credentials to connect your Zerodha account</p>
             </div>
@@ -56,7 +57,44 @@
             </div>
 
             <div class="text-center mt-4">
-                <p class="text-muted small">Don't have API credentials? <a href="https://kite.zerodha.com/connect/apps" target="_blank">Get them from Zerodha</a></p>
+                <p class="text-muted small">Don't have API credentials? <button type="button" class="btn btn-link p-0" data-bs-toggle="modal" data-bs-target="#apiGuideModal">Learn how to create them</button></p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- API Guide Modal -->
+<div class="modal fade" id="apiGuideModal" tabindex="-1" aria-labelledby="apiGuideModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="apiGuideModalLabel">Create API Credentials</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <ol class="mb-0">
+                    <li class="mb-3">Go to <a href="https://developers.kite.trade/apps" target="_blank">Zerodha Developer Console</a></li>
+                    <li class="mb-3">Click on "Create New App"</li>
+                    <li class="mb-3">Fill in the following details:
+                        <ul class="mt-2">
+                            <li><strong>Type:</strong> Select "Personal"</li>
+                            <li><strong>App Name:</strong> Enter your app name</li>
+                            <li><strong>Zerodha Client ID:</strong> Enter your Zerodha client ID (e.g., AB1234)</li>
+                            <li><strong>Redirect URL:</strong> Enter exactly: <code>{{ ZERODHA_REDIRECT_URL }}</code></li>
+                            <li><strong>Description:</strong> Brief description of your app</li>
+                        </ul>
+                    </li>
+                    <li class="mb-3">Click "Create" to generate your API credentials</li>
+                    <li>Copy the generated API Key and API Secret to use in this form</li>
+                </ol>
+                <div class="alert alert-info mt-3">
+                    <i class="fas fa-info-circle me-2"></i>
+                    <strong>Important:</strong> Make sure to use the exact redirect URL: <code>{{ ZERODHA_REDIRECT_URL }}</code>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <a href="https://developers.kite.trade/apps" target="_blank" class="btn btn-primary">Go to Developer Console</a>
             </div>
         </div>
     </div>
@@ -140,6 +178,15 @@ document.addEventListener('DOMContentLoaded', function() {
             e.stopPropagation();
             form.classList.add('was-validated');
             return;
+        }
+        
+        // Track login attempt
+        if (typeof gtag !== 'undefined') {
+            gtag('event', 'login', {
+                event_category: 'Authentication',
+                event_label: 'Zerodha',
+                custom_parameter_1: 'Zerodha'
+            });
         }
         
         // Disable button and show loading state
