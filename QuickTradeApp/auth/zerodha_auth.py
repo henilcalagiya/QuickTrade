@@ -28,8 +28,8 @@ class ZerodhaAuth:
     def get_login_url(self):
         """Generate Zerodha login URL"""
         try:
-            # Direct URL format as per Zerodha documentation
-            login_url = f"https://kite.trade/connect/login?api_key={self.api_key}"
+            # Direct URL format as per Zerodha documentation with required v=3 parameter
+            login_url = f"https://kite.trade/connect/login?v=3&api_key={self.api_key}"
             return login_url
         except Exception as e:
             raise

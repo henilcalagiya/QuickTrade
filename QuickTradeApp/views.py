@@ -100,8 +100,16 @@ def login(request):
 def zerodha_login(request):
     """Handle Zerodha login"""
     try:
-        # Clear any existing session data
-        request.session.flush()
+        # Clear any existing session data (with error handling)
+        try:
+            request.session.flush()
+        except Exception as e:
+            # If session flush fails, try to clear individual keys
+            try:
+                for key in list(request.session.keys()):
+                    del request.session[key]
+            except:
+                pass  # Continue even if session clearing fails
         
         if request.method == "POST":
             try:
@@ -116,10 +124,17 @@ def zerodha_login(request):
                 login_url = zerodha.get_login_url()
                 
                 if login_url:
-                    # Store credentials in session
-                    request.session['api_key'] = api_key
-                    request.session['api_secret'] = api_secret
-                    request.session['zerodha_redirect_uri'] = ZERODHA_REDIRECT_URL
+                    # Store credentials in session (with error handling)
+                    try:
+                        request.session['api_key'] = api_key
+                        request.session['api_secret'] = api_secret
+                        request.session['zerodha_redirect_uri'] = ZERODHA_REDIRECT_URL
+                    except Exception as e:
+                        # If session storage fails, continue without it
+                        import logging
+                        logger = logging.getLogger(__name__)
+                        logger.warning(f"Session storage failed: {str(e)}")
+                    
                     return redirect(login_url)
                 else:
                     return render(request, 'zerodha_login.html', {'error': 'Failed to generate login URL'})
