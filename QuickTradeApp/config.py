@@ -13,4 +13,4 @@ FYERS_REDIRECT_URL = f"{BASE_URL}/fyers/auth/"
 ZERODHA_REDIRECT_URL = f"{BASE_URL}/zerodha/callback/"
 
 # Google Analytics Configuration
-GOOGLE_ANALYTICS_ID = os.environ.get('GA_MEASUREMENT_ID', 'G-XXXXXXXXXX') 
+GOOGLE_ANALYTICS_ID = os.environ.get('GA_MEASUREMENT_ID', '')  # Empty string if no GA ID provided 

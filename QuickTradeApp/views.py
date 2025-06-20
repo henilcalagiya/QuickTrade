@@ -99,34 +99,45 @@ def login(request):
 @require_http_methods(["GET", "POST"])
 def zerodha_login(request):
     """Handle Zerodha login"""
-    # Clear any existing session data
-    request.session.flush()
-    
-    if request.method == "POST":
-        try:
-            api_key = request.POST.get('api_key')
-            api_secret = request.POST.get('api_secret')
-            
-            if not api_key or not api_secret:
-                return render(request, 'zerodha_login.html', {'error': 'API Key and Secret are required'})
-            
-            # Initialize Zerodha auth
-            zerodha = ZerodhaAuth(api_key, api_secret)
-            login_url = zerodha.get_login_url()
-            
-            if login_url:
-                # Store credentials in session
-                request.session['api_key'] = api_key
-                request.session['api_secret'] = api_secret
-                request.session['zerodha_redirect_uri'] = ZERODHA_REDIRECT_URL
-                return redirect(login_url)
-            else:
-                return render(request, 'zerodha_login.html', {'error': 'Failed to generate login URL'})
-        except Exception:
-            return render(request, 'zerodha_login.html', {'error': 'Failed to connect to Zerodha. Please check your credentials.'})
-    
-    # GET request - show login form with redirect URL
-    return render(request, 'zerodha_login.html', {'ZERODHA_REDIRECT_URL': ZERODHA_REDIRECT_URL})
+    try:
+        # Clear any existing session data
+        request.session.flush()
+        
+        if request.method == "POST":
+            try:
+                api_key = request.POST.get('api_key')
+                api_secret = request.POST.get('api_secret')
+                
+                if not api_key or not api_secret:
+                    return render(request, 'zerodha_login.html', {'error': 'API Key and Secret are required'})
+                
+                # Initialize Zerodha auth
+                zerodha = ZerodhaAuth(api_key, api_secret)
+                login_url = zerodha.get_login_url()
+                
+                if login_url:
+                    # Store credentials in session
+                    request.session['api_key'] = api_key
+                    request.session['api_secret'] = api_secret
+                    request.session['zerodha_redirect_uri'] = ZERODHA_REDIRECT_URL
+                    return redirect(login_url)
+                else:
+                    return render(request, 'zerodha_login.html', {'error': 'Failed to generate login URL'})
+            except Exception as e:
+                # Log the specific error for debugging
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.error(f"Zerodha login error: {str(e)}", exc_info=True)
+                return render(request, 'zerodha_login.html', {'error': 'Failed to connect to Zerodha. Please check your credentials.'})
+        
+        # GET request - show login form with redirect URL
+        return render(request, 'zerodha_login.html', {'ZERODHA_REDIRECT_URL': ZERODHA_REDIRECT_URL})
+    except Exception as e:
+        # Catch any other errors
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Unexpected error in zerodha_login: {str(e)}", exc_info=True)
+        return render(request, 'zerodha_login.html', {'error': 'An unexpected error occurred. Please try again.'})
 
 @require_http_methods(["GET"])
 def zerodha_callback(request):
