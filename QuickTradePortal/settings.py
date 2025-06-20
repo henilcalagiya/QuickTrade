@@ -86,6 +86,7 @@ if 'DATABASE_URL' in os.environ:
                 default=os.environ.get('DATABASE_URL'),
                 conn_max_age=600,
                 conn_health_checks=True,
+                ssl_require=True,  # Require SSL for production
             )
         }
         print(f"Database configured with DATABASE_URL: {os.environ.get('DATABASE_URL', '')[:50]}...")
@@ -176,6 +177,16 @@ if not DEBUG:
 else:
     # Use database sessions in development
     SESSION_ENGINE = 'django.contrib.sessions.backends.db'
+
+# Fallback to file sessions if database is not available
+try:
+    from django.db import connection
+    connection.ensure_connection()
+except Exception:
+    # If database connection fails, force file-based sessions
+    SESSION_ENGINE = 'django.contrib.sessions.backends.file'
+    SESSION_FILE_PATH = BASE_DIR / 'sessions'
+    print("Database connection failed, using file-based sessions")
 
 SESSION_COOKIE_AGE = 86400  # 24 hours
 
