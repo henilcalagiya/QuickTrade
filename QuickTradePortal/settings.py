@@ -80,13 +80,24 @@ WSGI_APPLICATION = 'QuickTradePortal.wsgi.application'
 
 if 'DATABASE_URL' in os.environ:
     # Production: Use DATABASE_URL from environment (PostgreSQL on Render)
-    DATABASES = {
-        'default': dj_database_url.config(
-            default=os.environ.get('DATABASE_URL'),
-            conn_max_age=600,
-            conn_health_checks=True,
-        )
-    }
+    try:
+        DATABASES = {
+            'default': dj_database_url.config(
+                default=os.environ.get('DATABASE_URL'),
+                conn_max_age=600,
+                conn_health_checks=True,
+            )
+        }
+        print(f"Database configured with DATABASE_URL: {os.environ.get('DATABASE_URL', '')[:50]}...")
+    except Exception as e:
+        print(f"Error configuring database with DATABASE_URL: {e}")
+        # Fallback to SQLite if DATABASE_URL fails
+        DATABASES = {
+            'default': {
+                'ENGINE': 'django.db.backends.sqlite3',
+                'NAME': BASE_DIR / 'db.sqlite3',
+            }
+        }
 else:
     # Local development: Use PostgreSQL
     DATABASES = {
@@ -145,6 +156,10 @@ STATICFILES_DIRS = [
 if not DEBUG:
     # Use CompressedStaticFilesStorage for production (more reliable)
     STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
+    # Add WhiteNoise configuration
+    WHITENOISE_USE_FINDERS = True
+    WHITENOISE_AUTOREFRESH = True
+    WHITENOISE_ROOT = BASE_DIR / 'staticfiles'
 else:
     STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
 
