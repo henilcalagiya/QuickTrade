@@ -79,6 +79,7 @@ WSGI_APPLICATION = 'QuickTradePortal.wsgi.application'
 # https://docs.djangoproject.com/en/5.0/ref/settings/#databases
 
 if 'DATABASE_URL' in os.environ:
+    # Production: Use DATABASE_URL from environment (PostgreSQL on Render)
     DATABASES = {
         'default': dj_database_url.config(
             default=os.environ.get('DATABASE_URL'),
@@ -87,10 +88,15 @@ if 'DATABASE_URL' in os.environ:
         )
     }
 else:
+    # Local development: Use PostgreSQL
     DATABASES = {
         'default': {
-            'ENGINE': 'django.db.backends.sqlite3',
-            'NAME': BASE_DIR / 'db.sqlite3',
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': 'quicktrade_dev',
+            'USER': os.environ.get('DB_USER', 'henil'),  # Your macOS username
+            'PASSWORD': os.environ.get('DB_PASSWORD', ''),  # Empty for local dev
+            'HOST': os.environ.get('DB_HOST', 'localhost'),
+            'PORT': os.environ.get('DB_PORT', '5432'),
         }
     }
 
