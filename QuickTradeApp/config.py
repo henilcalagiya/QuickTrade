@@ -4,7 +4,7 @@ Configuration settings for QuickTradeApp
 import os
 
 # Base URL - use environment variable or default to Render URL
-BASE_URL = os.environ.get('BASE_URL', 'https://quicktrade-9zj5.onrender.com')
+BASE_URL = os.environ.get('BASE_URL', 'http://127.0.0.1:8000/')
 
 # API Redirect URLs
 FYERS_REDIRECT_URL = f"{BASE_URL}/fyers/auth/"
