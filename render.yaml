@@ -1,29 +1,28 @@
+databases:
+  - name: quicktrade-db
+    databaseName: quicktrade_prod
+    user: quicktrade_user
+    plan: free
+
 services:
   - type: web
-    name: quicktrade
+    name: quicktrade-web
     env: python
-    buildCommand: bash build.sh
-    startCommand: gunicorn QuickTradePortal.wsgi:application
+    plan: free
+    buildCommand: "./build.sh"
+    startCommand: "gunicorn QuickTradePortal.wsgi:application"
     envVars:
       - key: PYTHON_VERSION
-        value: 3.12.0
+        value: 3.11.0
+      - key: DJANGO_SETTINGS_MODULE
+        value: QuickTradePortal.settings
       - key: SECRET_KEY
         generateValue: true
       - key: WEB_CONCURRENCY
         value: 4
-      - key: DEBUG
-        value: False
-      - key: GA_MEASUREMENT_ID
-        value: G-XXXXXXXXXX
       - key: BASE_URL
         value: https://quicktrade-9zj5.onrender.com
       - key: DATABASE_URL
         fromDatabase:
           name: quicktrade-db
-          property: connectionString
-
-databases:
-  - name: quicktrade-db
-    databaseName: quicktrade
-    user: quicktrade
-    plan: free 
+          property: connectionString 

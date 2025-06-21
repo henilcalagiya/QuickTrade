@@ -27,7 +27,10 @@ SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-1nn4**8ur4&utwl41k1g9
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get('DEBUG', 'True') == 'True'
 
-ALLOWED_HOSTS = ['localhost', '127.0.0.1', '.onrender.com']
+ALLOWED_HOSTS = ['localhost', '127.0.0.1', '.onrender.com', 'quicktrade-9zj5.onrender.com']
+
+# Base URL for the application
+BASE_URL = 'https://quicktrade-9zj5.onrender.com'
 
 
 # Application definition
@@ -66,7 +69,6 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
-                'QuickTradeApp.context_processors.google_analytics',
             ],
         },
     },
@@ -78,39 +80,13 @@ WSGI_APPLICATION = 'QuickTradePortal.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.0/ref/settings/#databases
 
-if 'DATABASE_URL' in os.environ:
-    # Production: Use DATABASE_URL from environment (PostgreSQL on Render)
-    try:
-        DATABASES = {
-            'default': dj_database_url.config(
-                default=os.environ.get('DATABASE_URL'),
-                conn_max_age=600,
-                conn_health_checks=True,
-                ssl_require=True,  # Require SSL for production
-            )
-        }
-        print(f"Database configured with DATABASE_URL: {os.environ.get('DATABASE_URL', '')[:50]}...")
-    except Exception as e:
-        print(f"Error configuring database with DATABASE_URL: {e}")
-        # Fallback to SQLite if DATABASE_URL fails
-        DATABASES = {
-            'default': {
-                'ENGINE': 'django.db.backends.sqlite3',
-                'NAME': BASE_DIR / 'db.sqlite3',
-            }
-        }
-else:
-    # Local development: Use PostgreSQL
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.postgresql',
-            'NAME': 'quicktrade_dev',
-            'USER': os.environ.get('DB_USER', 'henil'),  # Your macOS username
-            'PASSWORD': os.environ.get('DB_PASSWORD', ''),  # Empty for local dev
-            'HOST': os.environ.get('DB_HOST', 'localhost'),
-            'PORT': os.environ.get('DB_PORT', '5432'),
-        }
-    }
+DATABASES = {
+    'default': dj_database_url.config(
+        default=os.environ.get('DATABASE_URL', 'postgresql://henil:@localhost:5432/quicktrade_dev'),
+        conn_max_age=600,
+        conn_health_checks=True,
+    )
+}
 
 
 # Password validation
@@ -153,16 +129,8 @@ STATICFILES_DIRS = [
     BASE_DIR / 'QuickTradeApp' / 'static',
 ]
 
-# WhiteNoise configuration for static files
-if not DEBUG:
-    # Use CompressedStaticFilesStorage for production (more reliable)
-    STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
-    # Add WhiteNoise configuration
-    WHITENOISE_USE_FINDERS = True
-    WHITENOISE_AUTOREFRESH = True
-    WHITENOISE_ROOT = BASE_DIR / 'staticfiles'
-else:
-    STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
+# Enable WhiteNoise's GZip compression
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.0/ref/settings/#default-auto-field
@@ -170,58 +138,16 @@ else:
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Session settings
-if not DEBUG:
-    # Use file-based sessions in production to avoid database issues
-    SESSION_ENGINE = 'django.contrib.sessions.backends.file'
-    SESSION_FILE_PATH = BASE_DIR / 'sessions'
-else:
-    # Use database sessions in development
-    SESSION_ENGINE = 'django.contrib.sessions.backends.db'
-
-# Fallback to file sessions if database is not available
-try:
-    from django.db import connection
-    connection.ensure_connection()
-except Exception:
-    # If database connection fails, force file-based sessions
-    SESSION_ENGINE = 'django.contrib.sessions.backends.file'
-    SESSION_FILE_PATH = BASE_DIR / 'sessions'
-    print("Database connection failed, using file-based sessions")
-
+SESSION_ENGINE = 'django.contrib.sessions.backends.db'
 SESSION_COOKIE_AGE = 86400  # 24 hours
 
 # Security settings for production
 if not DEBUG:
     SECURE_BROWSER_XSS_FILTER = True
     SECURE_CONTENT_TYPE_NOSNIFF = True
-    X_FRAME_OPTIONS = 'DENY'
-    SECURE_HSTS_SECONDS = 31536000
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
-    SECURE_HSTS_PRELOAD = True
-
-# Basic logging for debugging
-LOGGING = {
-    'version': 1,
-    'disable_existing_loggers': False,
-    'handlers': {
-        'console': {
-            'class': 'logging.StreamHandler',
-        },
-    },
-    'root': {
-        'handlers': ['console'],
-        'level': 'INFO',
-    },
-    'loggers': {
-        'django': {
-            'handlers': ['console'],
-            'level': 'INFO',
-            'propagate': False,
-        },
-        'QuickTradeApp': {
-            'handlers': ['console'],
-            'level': 'DEBUG',
-            'propagate': False,
-        },
-    },
-}
+    SECURE_HSTS_SECONDS = 31536000
+    SECURE_REDIRECT_EXEMPT = []
+    SECURE_SSL_REDIRECT = True
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
