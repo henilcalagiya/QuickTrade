@@ -85,6 +85,7 @@ DATABASES = {
         default=os.environ.get('DATABASE_URL', 'postgresql://henil:@localhost:5432/quicktrade_dev'),
         conn_max_age=600,
         conn_health_checks=True,
+        ssl_require=True,  # Required for Render's PostgreSQL
     )
 }
 

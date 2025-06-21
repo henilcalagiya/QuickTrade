@@ -18,11 +18,11 @@ services:
         value: QuickTradePortal.settings
       - key: SECRET_KEY
         generateValue: true
+      - key: DEBUG
+        value: False
       - key: WEB_CONCURRENCY
         value: 4
       - key: BASE_URL
         value: https://quicktrade-9zj5.onrender.com
-      - key: DATABASE_URL
-        fromDatabase:
-          name: quicktrade-db
-          property: connectionString 
+    databases:
+      - name: quicktrade-db
