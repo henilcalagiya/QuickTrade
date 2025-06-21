@@ -6,6 +6,5 @@ pip install -r requirements.txt
 
 python manage.py collectstatic --no-input
 
-# Wait for database to be ready
-echo "Waiting for database to be ready..."
-python manage.py migrate --run-syncdb 
+# Create data directory for JSON storage
+mkdir -p data 

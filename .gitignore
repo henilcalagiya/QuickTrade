@@ -131,6 +131,11 @@ dmypy.json
 # Django static files
 staticfiles/
 
+# JSON Data Storage
+data/*.json
+backups/
+sessions/
+
 # IDE
 .vscode/
 .idea/
