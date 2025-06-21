@@ -134,7 +134,6 @@ staticfiles/
 # JSON Data Storage
 data/*.json
 backups/
-sessions/
 
 # IDE
 .vscode/
